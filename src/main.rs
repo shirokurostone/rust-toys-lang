@@ -12,6 +12,18 @@ enum Expression {
         name: String,
         expression: Box<Expression>,
     },
+    Block {
+        expressions: Vec<Expression>,
+    },
+    While {
+        condition: Box<Expression>,
+        body: Box<Expression>,
+    },
+    If {
+        condition: Box<Expression>,
+        then_clause: Box<Expression>,
+        else_clause: Option<Box<Expression>>,
+    },
 }
 
 enum Operator {
@@ -19,6 +31,12 @@ enum Operator {
     Subtract,
     Multiply,
     Divide,
+    LessThan,
+    LessOrEqual,
+    GreaterThan,
+    GreaterOrEqual,
+    EqualEqual,
+    NotEqual,
 }
 
 impl Operator {
@@ -28,6 +46,12 @@ impl Operator {
             Subtract => "-",
             Multiply => "*",
             Divide => "/",
+            LessThan => "<",
+            LessOrEqual => "<=",
+            GreaterThan => ">",
+            GreaterOrEqual => ">=",
+            EqualEqual => "==",
+            NotEqual => "!=",
         }
     }
 }
@@ -65,6 +89,48 @@ impl Interpreter {
                     Operator::Subtract => l - r,
                     Operator::Multiply => l * r,
                     Operator::Divide => l / r,
+                    Operator::LessThan => {
+                        if l < r {
+                            1i32
+                        } else {
+                            0i32
+                        }
+                    }
+                    Operator::LessOrEqual => {
+                        if l <= r {
+                            1i32
+                        } else {
+                            0i32
+                        }
+                    }
+                    Operator::GreaterThan => {
+                        if l > r {
+                            1i32
+                        } else {
+                            0i32
+                        }
+                    }
+                    Operator::GreaterOrEqual => {
+                        if l >= r {
+                            1i32
+                        } else {
+                            0i32
+                        }
+                    }
+                    Operator::EqualEqual => {
+                        if l == r {
+                            1i32
+                        } else {
+                            0i32
+                        }
+                    }
+                    Operator::NotEqual => {
+                        if l != r {
+                            1i32
+                        } else {
+                            0i32
+                        }
+                    }
                 }
             }
             Expression::Literal(literal) => match &**literal {
@@ -78,6 +144,42 @@ impl Interpreter {
                 let value = self.interpret(&**exp);
                 self.environment.insert(name.to_string(), value);
                 value
+            }
+            Expression::Block {
+                expressions: expressions,
+            } => {
+                for exp in expressions {
+                    self.interpret(exp);
+                }
+                1
+            }
+            Expression::While {
+                condition: condition,
+                body: body,
+            } => {
+                loop {
+                    let cond = self.interpret(condition);
+                    if cond == 0 {
+                        break;
+                    }
+                    self.interpret(body);
+                }
+                1
+            }
+            Expression::If {
+                condition: condition,
+                then_clause: then_clause,
+                else_clause: else_clause,
+            } => {
+                let cond = self.interpret(condition);
+                if cond != 0 {
+                    self.interpret(then_clause)
+                } else {
+                    match else_clause {
+                        Some(e) => self.interpret(e),
+                        None => 1i32,
+                    }
+                }
             }
         }
     }
@@ -125,6 +227,48 @@ fn interpret_binary_expression() {
         rhs: Box::new(integer(2)),
     });
     assert_eq!(1 / 2, actual_divide);
+
+    let actual_less_than = interpreter.interpret(&Expression::BinaryExpression {
+        operator: Operator::LessThan,
+        lhs: Box::new(integer(1)),
+        rhs: Box::new(integer(2)),
+    });
+    assert_eq!(1, actual_less_than);
+
+    let actual_less_or_equal = interpreter.interpret(&Expression::BinaryExpression {
+        operator: Operator::LessOrEqual,
+        lhs: Box::new(integer(1)),
+        rhs: Box::new(integer(2)),
+    });
+    assert_eq!(1, actual_less_or_equal);
+
+    let actual_greater_than = interpreter.interpret(&Expression::BinaryExpression {
+        operator: Operator::GreaterThan,
+        lhs: Box::new(integer(1)),
+        rhs: Box::new(integer(2)),
+    });
+    assert_eq!(0, actual_greater_than);
+
+    let actual_greater_or_equal = interpreter.interpret(&Expression::BinaryExpression {
+        operator: Operator::GreaterOrEqual,
+        lhs: Box::new(integer(1)),
+        rhs: Box::new(integer(2)),
+    });
+    assert_eq!(0, actual_greater_or_equal);
+
+    let actual_equal_equal = interpreter.interpret(&Expression::BinaryExpression {
+        operator: Operator::EqualEqual,
+        lhs: Box::new(integer(1)),
+        rhs: Box::new(integer(2)),
+    });
+    assert_eq!(0, actual_equal_equal);
+
+    let actual_not_equal = interpreter.interpret(&Expression::BinaryExpression {
+        operator: Operator::NotEqual,
+        lhs: Box::new(integer(1)),
+        rhs: Box::new(integer(2)),
+    });
+    assert_eq!(1, actual_not_equal);
 }
 
 #[test]
@@ -151,6 +295,108 @@ fn interpret_assignment() {
         Some(&42i32),
         interpreter.environment.get(&"hoge".to_string())
     );
+}
+
+#[test]
+fn interpret_block() {
+    let mut interpreter = Interpreter::new();
+
+    let actual = interpreter.interpret(&Expression::Block {
+        expressions: vec![
+            Expression::Assignment {
+                name: "a".to_string(),
+                expression: Box::new(integer((1))),
+            },
+            Expression::Assignment {
+                name: "b".to_string(),
+                expression: Box::new(integer((2))),
+            },
+            Expression::Assignment {
+                name: "c".to_string(),
+                expression: Box::new(integer((3))),
+            },
+        ],
+    });
+
+    assert_eq!(1, actual);
+    assert_eq!(Some(&1i32), interpreter.environment.get(&"a".to_string()));
+    assert_eq!(Some(&2i32), interpreter.environment.get(&"b".to_string()));
+    assert_eq!(Some(&3i32), interpreter.environment.get(&"c".to_string()));
+}
+
+#[test]
+fn interpret_while() {
+    let mut interpreter = Interpreter::new();
+    interpreter.environment.insert("a".to_string(), 0i32);
+
+    let actual = interpreter.interpret(&Expression::While {
+        condition: Box::new(Expression::BinaryExpression {
+            operator: Operator::LessThan,
+            lhs: Box::new(Expression::Identifier("a".to_string())),
+            rhs: Box::new(integer(10)),
+        }),
+        body: Box::new(Expression::Assignment {
+            name: "a".to_string(),
+            expression: Box::new(Expression::BinaryExpression {
+                operator: Operator::Add,
+                lhs: Box::new(Expression::Identifier("a".to_string())),
+                rhs: Box::new(integer(1)),
+            }),
+        }),
+    });
+
+    assert_eq!(1, actual);
+    assert_eq!(Some(&10i32), interpreter.environment.get(&"a".to_string()));
+}
+
+#[test]
+fn interpret_if_then() {
+    let mut interpreter = Interpreter::new();
+    interpreter.environment.insert("a".to_string(), 0i32);
+
+    let actual = interpreter.interpret(&Expression::If {
+        condition: Box::new(Expression::BinaryExpression {
+            operator: Operator::LessThan,
+            lhs: Box::new(Expression::Identifier("a".to_string())),
+            rhs: Box::new(integer(10)),
+        }),
+        then_clause: Box::new(Expression::Assignment {
+            name: "b".to_string(),
+            expression: Box::new(integer(1)),
+        }),
+        else_clause: Some(Box::new(Expression::Assignment {
+            name: "b".to_string(),
+            expression: Box::new(integer(2)),
+        })),
+    });
+
+    assert_eq!(1, actual);
+    assert_eq!(Some(&1i32), interpreter.environment.get(&"b".to_string()));
+}
+
+#[test]
+fn interpret_if_else() {
+    let mut interpreter = Interpreter::new();
+    interpreter.environment.insert("a".to_string(), 0i32);
+
+    let actual = interpreter.interpret(&Expression::If {
+        condition: Box::new(Expression::BinaryExpression {
+            operator: Operator::GreaterThan,
+            lhs: Box::new(Expression::Identifier("a".to_string())),
+            rhs: Box::new(integer(10)),
+        }),
+        then_clause: Box::new(Expression::Assignment {
+            name: "b".to_string(),
+            expression: Box::new(integer(1)),
+        }),
+        else_clause: Some(Box::new(Expression::Assignment {
+            name: "b".to_string(),
+            expression: Box::new(integer(2)),
+        })),
+    });
+
+    assert_eq!(2, actual);
+    assert_eq!(Some(&2i32), interpreter.environment.get(&"b".to_string()));
 }
 
 fn main() {
