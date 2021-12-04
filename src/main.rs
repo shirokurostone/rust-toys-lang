@@ -1,5 +1,9 @@
 enum Expression {
-    BinaryExpression(Box<BinaryExpression>),
+    BinaryExpression {
+        operator: Operator,
+        lhs: Box<Expression>,
+        rhs: Box<Expression>,
+    },
     Literal(Box<Literal>),
 }
 
@@ -21,13 +25,6 @@ impl Operator {
     }
 }
 
-enum BinaryExpression {
-    Add { lhs: Expression, rhs: Expression },
-    Subtract { lhs: Expression, rhs: Expression },
-    Multiply { lhs: Expression, rhs: Expression },
-    Divide { lhs: Expression, rhs: Expression },
-}
-
 enum Literal {
     Integer(i32),
 }
@@ -37,28 +34,20 @@ struct Interpreter();
 impl Interpreter {
     fn interpret(&self, expression: &Expression) -> i32 {
         match expression {
-            Expression::BinaryExpression(exp) => match &**exp {
-                BinaryExpression::Add { lhs, rhs } => {
-                    let l = self.interpret(lhs);
-                    let r = self.interpret(rhs);
-                    l + r
+            Expression::BinaryExpression {
+                operator: op,
+                lhs: lhs,
+                rhs: rhs,
+            } => {
+                let l = self.interpret(lhs);
+                let r = self.interpret(rhs);
+                match op {
+                    Operator::Add => l + r,
+                    Operator::Subtract => l - r,
+                    Operator::Multiply => l * r,
+                    Operator::Divide => l / r,
                 }
-                BinaryExpression::Subtract { lhs, rhs } => {
-                    let l = self.interpret(lhs);
-                    let r = self.interpret(rhs);
-                    l - r
-                }
-                BinaryExpression::Multiply { lhs, rhs } => {
-                    let l = self.interpret(lhs);
-                    let r = self.interpret(rhs);
-                    l * r
-                }
-                BinaryExpression::Divide { lhs, rhs } => {
-                    let l = self.interpret(lhs);
-                    let r = self.interpret(rhs);
-                    l / r
-                }
-            },
+            }
             Expression::Literal(literal) => match &**literal {
                 Literal::Integer(value) => *value,
             },
@@ -80,36 +69,33 @@ fn interpret_literal() {
 fn interpret_binary_expression() {
     let interpreter = Interpreter();
 
-    let actual_add = interpreter.interpret(&Expression::BinaryExpression(Box::new(
-        BinaryExpression::Add {
-            lhs: Expression::Literal(Box::new(Literal::Integer(1))),
-            rhs: Expression::Literal(Box::new(Literal::Integer(2))),
-        },
-    )));
+    let actual_add = interpreter.interpret(&Expression::BinaryExpression {
+        operator: Operator::Add,
+        lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
+        rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+    });
     assert_eq!(1 + 2, actual_add);
 
-    let actual_subtract = interpreter.interpret(&Expression::BinaryExpression(Box::new(
-        BinaryExpression::Subtract {
-            lhs: Expression::Literal(Box::new(Literal::Integer(1))),
-            rhs: Expression::Literal(Box::new(Literal::Integer(2))),
-        },
-    )));
+    let actual_subtract = interpreter.interpret(&Expression::BinaryExpression {
+        operator: Operator::Subtract,
+        lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
+        rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+    });
+
     assert_eq!(1 - 2, actual_subtract);
 
-    let actual_multiply = interpreter.interpret(&Expression::BinaryExpression(Box::new(
-        BinaryExpression::Multiply {
-            lhs: Expression::Literal(Box::new(Literal::Integer(1))),
-            rhs: Expression::Literal(Box::new(Literal::Integer(2))),
-        },
-    )));
+    let actual_multiply = interpreter.interpret(&Expression::BinaryExpression {
+        operator: Operator::Multiply,
+        lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
+        rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+    });
     assert_eq!(1 * 2, actual_multiply);
 
-    let actual_divide = interpreter.interpret(&Expression::BinaryExpression(Box::new(
-        BinaryExpression::Divide {
-            lhs: Expression::Literal(Box::new(Literal::Integer(1))),
-            rhs: Expression::Literal(Box::new(Literal::Integer(2))),
-        },
-    )));
+    let actual_divide = interpreter.interpret(&Expression::BinaryExpression {
+        operator: Operator::Divide,
+        lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
+        rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+    });
     assert_eq!(1 / 2, actual_divide);
 }
 
