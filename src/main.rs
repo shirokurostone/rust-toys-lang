@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 enum Expression {
     BinaryExpression {
         operator: Operator,
@@ -5,6 +7,11 @@ enum Expression {
         rhs: Box<Expression>,
     },
     Literal(Box<Literal>),
+    Identifier(String),
+    Assignment {
+        name: String,
+        expression: Box<Expression>,
+    },
 }
 
 enum Operator {
@@ -33,10 +40,18 @@ fn integer(value: i32) -> Expression {
     Expression::Literal(Box::new(Literal::Integer(value)))
 }
 
-struct Interpreter();
+struct Interpreter {
+    environment: HashMap<String, i32>,
+}
 
 impl Interpreter {
-    fn interpret(&self, expression: &Expression) -> i32 {
+    fn new() -> Interpreter {
+        Interpreter {
+            environment: HashMap::<String, i32>::new(),
+        }
+    }
+
+    fn interpret(&mut self, expression: &Expression) -> i32 {
         match expression {
             Expression::BinaryExpression {
                 operator: op,
@@ -55,13 +70,22 @@ impl Interpreter {
             Expression::Literal(literal) => match &**literal {
                 Literal::Integer(value) => *value,
             },
+            Expression::Identifier(s) => self.environment[s],
+            Expression::Assignment {
+                name: name,
+                expression: exp,
+            } => {
+                let value = self.interpret(&**exp);
+                self.environment.insert(name.to_string(), value);
+                value
+            }
         }
     }
 }
 
 #[test]
 fn interpret_literal() {
-    let interpreter = Interpreter();
+    let mut interpreter = Interpreter::new();
 
     let actual = interpreter.interpret(&Expression::Literal(Box::new(Literal::Integer(42))));
 
@@ -71,7 +95,7 @@ fn interpret_literal() {
 #[test]
 
 fn interpret_binary_expression() {
-    let interpreter = Interpreter();
+    let mut interpreter = Interpreter::new();
 
     let actual_add = interpreter.interpret(&Expression::BinaryExpression {
         operator: Operator::Add,
@@ -101,6 +125,32 @@ fn interpret_binary_expression() {
         rhs: Box::new(integer(2)),
     });
     assert_eq!(1 / 2, actual_divide);
+}
+
+#[test]
+fn interpret_identifier() {
+    let mut interpreter = Interpreter::new();
+    interpreter.environment.insert("hoge".to_string(), 42);
+
+    let actual = interpreter.interpret(&Expression::Identifier("hoge".to_string()));
+
+    assert_eq!(42, actual);
+}
+
+#[test]
+fn interpret_assignment() {
+    let mut interpreter = Interpreter::new();
+
+    let actual = interpreter.interpret(&Expression::Assignment {
+        name: "hoge".to_string(),
+        expression: Box::new(integer((42))),
+    });
+
+    assert_eq!(42, actual);
+    assert_eq!(
+        Some(&42i32),
+        interpreter.environment.get(&"hoge".to_string())
+    );
 }
 
 fn main() {
