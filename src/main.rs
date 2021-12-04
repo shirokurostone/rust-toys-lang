@@ -29,6 +29,10 @@ enum Literal {
     Integer(i32),
 }
 
+fn integer(value: i32) -> Expression {
+    Expression::Literal(Box::new(Literal::Integer(value)))
+}
+
 struct Interpreter();
 
 impl Interpreter {
@@ -71,30 +75,30 @@ fn interpret_binary_expression() {
 
     let actual_add = interpreter.interpret(&Expression::BinaryExpression {
         operator: Operator::Add,
-        lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
-        rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+        lhs: Box::new(integer(1)),
+        rhs: Box::new(integer(2)),
     });
     assert_eq!(1 + 2, actual_add);
 
     let actual_subtract = interpreter.interpret(&Expression::BinaryExpression {
         operator: Operator::Subtract,
-        lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
-        rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+        lhs: Box::new(integer(1)),
+        rhs: Box::new(integer(2)),
     });
 
     assert_eq!(1 - 2, actual_subtract);
 
     let actual_multiply = interpreter.interpret(&Expression::BinaryExpression {
         operator: Operator::Multiply,
-        lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
-        rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+        lhs: Box::new(integer(1)),
+        rhs: Box::new(integer(2)),
     });
     assert_eq!(1 * 2, actual_multiply);
 
     let actual_divide = interpreter.interpret(&Expression::BinaryExpression {
         operator: Operator::Divide,
-        lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
-        rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+        lhs: Box::new(integer(1)),
+        rhs: Box::new(integer(2)),
     });
     assert_eq!(1 / 2, actual_divide);
 }
