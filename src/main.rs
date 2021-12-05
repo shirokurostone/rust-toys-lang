@@ -61,16 +61,16 @@ enum Operator {
 impl Operator {
     fn value(&self) -> &str {
         match self {
-            Add => "+",
-            Subtract => "-",
-            Multiply => "*",
-            Divide => "/",
-            LessThan => "<",
-            LessOrEqual => "<=",
-            GreaterThan => ">",
-            GreaterOrEqual => ">=",
-            EqualEqual => "==",
-            NotEqual => "!=",
+            Operator::Add => "+",
+            Operator::Subtract => "-",
+            Operator::Multiply => "*",
+            Operator::Divide => "/",
+            Operator::LessThan => "<",
+            Operator::LessOrEqual => "<=",
+            Operator::GreaterThan => ">",
+            Operator::GreaterOrEqual => ">=",
+            Operator::EqualEqual => "==",
+            Operator::NotEqual => "!=",
         }
     }
 }
@@ -103,7 +103,7 @@ impl<'a> Interpreter<'a> {
         for top in top_levels {
             match top {
                 TopLevel::FunctionDefinition {
-                    name: name,
+                    name,
                     args: _,
                     body: _,
                 } => {
@@ -111,7 +111,7 @@ impl<'a> Interpreter<'a> {
                 }
                 TopLevel::GlobalVariableDefinition { name, expression } => {
                     let v = self.interpret(expression);
-                    self.setVariable(name.to_string(), v);
+                    self.set_variable(name.to_string(), v);
                 }
             }
         }
@@ -121,7 +121,7 @@ impl<'a> Interpreter<'a> {
                 if let TopLevel::FunctionDefinition {
                     name: _,
                     args: _,
-                    body: body,
+                    body,
                 } = def
                 {
                     self.interpret(body)
@@ -133,7 +133,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn getVariable(&self, name: String) -> Option<i32> {
+    fn get_variable(&self, name: String) -> Option<i32> {
         for env in self.environments.iter().rev() {
             if let Some(v) = env.get(&name) {
                 return Some(*v);
@@ -142,7 +142,7 @@ impl<'a> Interpreter<'a> {
         None
     }
 
-    fn setVariable(&mut self, name: String, value: i32) -> Option<i32> {
+    fn set_variable(&mut self, name: String, value: i32) -> Option<i32> {
         for env in self.environments.iter_mut().rev() {
             if env.contains_key(&name) {
                 return env.insert(name.to_string(), value);
@@ -158,8 +158,8 @@ impl<'a> Interpreter<'a> {
         match expression {
             Expression::BinaryExpression {
                 operator: op,
-                lhs: lhs,
-                rhs: rhs,
+                lhs,
+                rhs,
             } => {
                 let l = self.interpret(lhs);
                 let r = self.interpret(rhs);
@@ -215,31 +215,26 @@ impl<'a> Interpreter<'a> {
             Expression::Literal(literal) => match &**literal {
                 Literal::Integer(value) => *value,
             },
-            Expression::Identifier(s) => match self.getVariable(s.to_string()) {
+            Expression::Identifier(s) => match self.get_variable(s.to_string()) {
                 Some(v) => v,
                 None => 0,
             },
             Expression::Assignment {
-                name: name,
+                name,
                 expression: exp,
             } => {
                 let value = self.interpret(&**exp);
-                self.setVariable(name.to_string(), value);
+                self.set_variable(name.to_string(), value);
                 value
             }
-            Expression::Block {
-                expressions: expressions,
-            } => {
+            Expression::Block { expressions } => {
                 let mut ret = 0;
                 for exp in expressions {
                     ret = self.interpret(exp);
                 }
                 ret
             }
-            Expression::While {
-                condition: condition,
-                body: body,
-            } => {
+            Expression::While { condition, body } => {
                 loop {
                     let cond = self.interpret(condition);
                     if cond == 0 {
@@ -250,9 +245,9 @@ impl<'a> Interpreter<'a> {
                 1
             }
             Expression::If {
-                condition: condition,
-                then_clause: then_clause,
-                else_clause: else_clause,
+                condition,
+                then_clause,
+                else_clause,
             } => {
                 let cond = self.interpret(condition);
                 if cond != 0 {
@@ -265,7 +260,7 @@ impl<'a> Interpreter<'a> {
                 }
             }
             Expression::FunctionCall {
-                name: name,
+                name,
                 args: actual_params,
             } => match self.function_environment.get(name) {
                 Some(def) => {
@@ -273,7 +268,7 @@ impl<'a> Interpreter<'a> {
                     if let TopLevel::FunctionDefinition {
                         name: _,
                         args: formal_params,
-                        body: body,
+                        body,
                     } = def
                     {
                         let mut values = Vec::new();
@@ -392,7 +387,7 @@ fn interpret_binary_expression() {
 #[test]
 fn interpret_identifier() {
     let mut interpreter = Interpreter::new();
-    interpreter.setVariable("hoge".to_string(), 42);
+    interpreter.set_variable("hoge".to_string(), 42);
 
     let actual = interpreter.interpret(&Expression::Identifier("hoge".to_string()));
 
@@ -405,11 +400,11 @@ fn interpret_assignment() {
 
     let actual = interpreter.interpret(&Expression::Assignment {
         name: "hoge".to_string(),
-        expression: Box::new(integer((42))),
+        expression: Box::new(integer(42)),
     });
 
     assert_eq!(42, actual);
-    assert_eq!(Some(42i32), interpreter.getVariable("hoge".to_string()));
+    assert_eq!(Some(42i32), interpreter.get_variable("hoge".to_string()));
 }
 
 #[test]
@@ -420,30 +415,30 @@ fn interpret_block() {
         expressions: vec![
             Expression::Assignment {
                 name: "a".to_string(),
-                expression: Box::new(integer((1))),
+                expression: Box::new(integer(1)),
             },
             Expression::Assignment {
                 name: "b".to_string(),
-                expression: Box::new(integer((2))),
+                expression: Box::new(integer(2)),
             },
             Expression::Assignment {
                 name: "c".to_string(),
-                expression: Box::new(integer((3))),
+                expression: Box::new(integer(3)),
             },
             integer(4),
         ],
     });
 
     assert_eq!(4, actual);
-    assert_eq!(Some(1i32), interpreter.getVariable("a".to_string()));
-    assert_eq!(Some(2i32), interpreter.getVariable("b".to_string()));
-    assert_eq!(Some(3i32), interpreter.getVariable("c".to_string()));
+    assert_eq!(Some(1i32), interpreter.get_variable("a".to_string()));
+    assert_eq!(Some(2i32), interpreter.get_variable("b".to_string()));
+    assert_eq!(Some(3i32), interpreter.get_variable("c".to_string()));
 }
 
 #[test]
 fn interpret_while() {
     let mut interpreter = Interpreter::new();
-    interpreter.setVariable("a".to_string(), 0i32);
+    interpreter.set_variable("a".to_string(), 0i32);
 
     let actual = interpreter.interpret(&Expression::While {
         condition: Box::new(Expression::BinaryExpression {
@@ -462,13 +457,13 @@ fn interpret_while() {
     });
 
     assert_eq!(1, actual);
-    assert_eq!(Some(10i32), interpreter.getVariable("a".to_string()));
+    assert_eq!(Some(10i32), interpreter.get_variable("a".to_string()));
 }
 
 #[test]
 fn interpret_if_then() {
     let mut interpreter = Interpreter::new();
-    interpreter.setVariable("a".to_string(), 0i32);
+    interpreter.set_variable("a".to_string(), 0i32);
 
     let actual = interpreter.interpret(&Expression::If {
         condition: Box::new(Expression::BinaryExpression {
@@ -487,13 +482,13 @@ fn interpret_if_then() {
     });
 
     assert_eq!(1, actual);
-    assert_eq!(Some(1i32), interpreter.getVariable("b".to_string()));
+    assert_eq!(Some(1i32), interpreter.get_variable("b".to_string()));
 }
 
 #[test]
 fn interpret_if_else() {
     let mut interpreter = Interpreter::new();
-    interpreter.setVariable("a".to_string(), 0i32);
+    interpreter.set_variable("a".to_string(), 0i32);
 
     let actual = interpreter.interpret(&Expression::If {
         condition: Box::new(Expression::BinaryExpression {
@@ -512,7 +507,7 @@ fn interpret_if_else() {
     });
 
     assert_eq!(2, actual);
-    assert_eq!(Some(2i32), interpreter.getVariable("b".to_string()));
+    assert_eq!(Some(2i32), interpreter.get_variable("b".to_string()));
 }
 
 #[test]
