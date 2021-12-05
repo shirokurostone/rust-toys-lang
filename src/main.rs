@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+#[derive(Debug)]
 enum TopLevel {
     FunctionDefinition {
         name: String,
@@ -12,6 +13,7 @@ enum TopLevel {
     },
 }
 
+#[derive(Debug)]
 enum Expression {
     BinaryExpression {
         operator: Operator,
@@ -42,6 +44,7 @@ enum Expression {
     },
 }
 
+#[derive(Debug)]
 enum Operator {
     Add,
     Subtract,
@@ -72,6 +75,7 @@ impl Operator {
     }
 }
 
+#[derive(Debug)]
 enum Literal {
     Integer(i32),
 }
