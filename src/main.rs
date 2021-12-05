@@ -543,6 +543,50 @@ fn interpret_function_call() {
     assert_eq!(3, actual);
 }
 
+#[test]
+fn test_factorial() {
+    let mut interpreter = Interpreter::new();
+    let main_func = TopLevel::FunctionDefinition {
+        name: "main".to_string(),
+        args: vec![],
+        body: Expression::Block {
+            expressions: vec![Expression::FunctionCall {
+                name: "fact".to_string(),
+                args: vec![integer(5)],
+            }],
+        },
+    };
+    let fact_func = TopLevel::FunctionDefinition {
+        name: "fact".to_string(),
+        args: vec!["n".to_string()],
+        body: Expression::Block {
+            expressions: vec![Expression::If {
+                condition: Box::new(Expression::BinaryExpression {
+                    operator: Operator::LessThan,
+                    lhs: Box::new(Expression::Identifier("n".to_string())),
+                    rhs: Box::new(integer(2)),
+                }),
+                then_clause: Box::new(integer(1)),
+                else_clause: Some(Box::new(Expression::BinaryExpression {
+                    operator: Operator::Multiply,
+                    lhs: Box::new(Expression::Identifier("n".to_string())),
+                    rhs: Box::new(Expression::FunctionCall {
+                        name: "fact".to_string(),
+                        args: vec![Expression::BinaryExpression {
+                            operator: Operator::Subtract,
+                            lhs: Box::new(Expression::Identifier("n".to_string())),
+                            rhs: Box::new(integer(1)),
+                        }],
+                    }),
+                })),
+            }],
+        },
+    };
+    let top_level = vec![&main_func, &fact_func];
+    let actual = interpreter.call_main(top_level);
+    assert_eq!(120, actual);
+}
+
 fn main() {
     println!("Hello, world!");
 }
