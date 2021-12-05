@@ -1,5 +1,17 @@
 use std::collections::HashMap;
 
+enum TopLevel {
+    FunctionDefinition {
+        name: String,
+        args: Vec<String>,
+        body: Expression,
+    },
+    GlobalVariableDefinition {
+        name: String,
+        expression: Box<Expression>,
+    },
+}
+
 enum Expression {
     BinaryExpression {
         operator: Operator,
@@ -23,6 +35,10 @@ enum Expression {
         condition: Box<Expression>,
         then_clause: Box<Expression>,
         else_clause: Option<Box<Expression>>,
+    },
+    FunctionCall {
+        name: String,
+        args: Vec<Expression>,
     },
 }
 
@@ -64,15 +80,74 @@ fn integer(value: i32) -> Expression {
     Expression::Literal(Box::new(Literal::Integer(value)))
 }
 
-struct Interpreter {
-    environment: HashMap<String, i32>,
+struct Interpreter<'a> {
+    environments: Vec<HashMap<String, i32>>,
+    function_environment: HashMap<String, &'a TopLevel>,
 }
 
-impl Interpreter {
-    fn new() -> Interpreter {
-        Interpreter {
-            environment: HashMap::<String, i32>::new(),
+impl<'a> Interpreter<'a> {
+    fn new() -> Interpreter<'a> {
+        let mut i = Interpreter {
+            environments: Vec::new(),
+            function_environment: HashMap::<String, &'a TopLevel>::new(),
+        };
+        i.environments.push(HashMap::<String, i32>::new());
+        i
+    }
+
+    fn call_main(&mut self, top_levels: Vec<&'a TopLevel>) -> i32 {
+        for top in top_levels {
+            match top {
+                TopLevel::FunctionDefinition {
+                    name: name,
+                    args: _,
+                    body: _,
+                } => {
+                    self.function_environment.insert(name.to_string(), top);
+                }
+                TopLevel::GlobalVariableDefinition { name, expression } => {
+                    let v = self.interpret(expression);
+                    self.setVariable(name.to_string(), v);
+                }
+            }
         }
+
+        match self.function_environment.get(&"main".to_string()) {
+            Some(def) => {
+                if let TopLevel::FunctionDefinition {
+                    name: _,
+                    args: _,
+                    body: body,
+                } = def
+                {
+                    self.interpret(body)
+                } else {
+                    0
+                }
+            }
+            None => 0,
+        }
+    }
+
+    fn getVariable(&self, name: String) -> Option<i32> {
+        for env in self.environments.iter().rev() {
+            if let Some(v) = env.get(&name) {
+                return Some(*v);
+            }
+        }
+        None
+    }
+
+    fn setVariable(&mut self, name: String, value: i32) -> Option<i32> {
+        for env in self.environments.iter_mut().rev() {
+            if env.contains_key(&name) {
+                return env.insert(name.to_string(), value);
+            }
+        }
+        self.environments
+            .last_mut()?
+            .insert(name.to_string(), value);
+        None
     }
 
     fn interpret(&mut self, expression: &Expression) -> i32 {
@@ -136,13 +211,16 @@ impl Interpreter {
             Expression::Literal(literal) => match &**literal {
                 Literal::Integer(value) => *value,
             },
-            Expression::Identifier(s) => self.environment[s],
+            Expression::Identifier(s) => match self.getVariable(s.to_string()) {
+                Some(v) => v,
+                None => 0,
+            },
             Expression::Assignment {
                 name: name,
                 expression: exp,
             } => {
                 let value = self.interpret(&**exp);
-                self.environment.insert(name.to_string(), value);
+                self.setVariable(name.to_string(), value);
                 value
             }
             Expression::Block {
@@ -181,6 +259,41 @@ impl Interpreter {
                     }
                 }
             }
+            Expression::FunctionCall {
+                name: name,
+                args: actual_params,
+            } => match self.function_environment.get(name) {
+                Some(def) => {
+                    let mut ret = 0;
+                    if let TopLevel::FunctionDefinition {
+                        name: _,
+                        args: formal_params,
+                        body: body,
+                    } = def
+                    {
+                        let mut values = Vec::new();
+                        for param in actual_params {
+                            values.push(self.interpret(param));
+                        }
+
+                        let mut env = HashMap::<String, i32>::new();
+                        for i in 0..(formal_params.len()) {
+                            match formal_params.get(i) {
+                                Some(v) => {
+                                    env.insert(v.to_string(), values[i]);
+                                }
+                                None => (),
+                            }
+                        }
+
+                        self.environments.push(env);
+                        ret = self.interpret(body);
+                        self.environments.pop();
+                    }
+                    ret
+                }
+                None => 0,
+            },
         }
     }
 }
@@ -274,7 +387,7 @@ fn interpret_binary_expression() {
 #[test]
 fn interpret_identifier() {
     let mut interpreter = Interpreter::new();
-    interpreter.environment.insert("hoge".to_string(), 42);
+    interpreter.setVariable("hoge".to_string(), 42);
 
     let actual = interpreter.interpret(&Expression::Identifier("hoge".to_string()));
 
@@ -291,10 +404,7 @@ fn interpret_assignment() {
     });
 
     assert_eq!(42, actual);
-    assert_eq!(
-        Some(&42i32),
-        interpreter.environment.get(&"hoge".to_string())
-    );
+    assert_eq!(Some(42i32), interpreter.getVariable("hoge".to_string()));
 }
 
 #[test]
@@ -319,15 +429,15 @@ fn interpret_block() {
     });
 
     assert_eq!(1, actual);
-    assert_eq!(Some(&1i32), interpreter.environment.get(&"a".to_string()));
-    assert_eq!(Some(&2i32), interpreter.environment.get(&"b".to_string()));
-    assert_eq!(Some(&3i32), interpreter.environment.get(&"c".to_string()));
+    assert_eq!(Some(1i32), interpreter.getVariable("a".to_string()));
+    assert_eq!(Some(2i32), interpreter.getVariable("b".to_string()));
+    assert_eq!(Some(3i32), interpreter.getVariable("c".to_string()));
 }
 
 #[test]
 fn interpret_while() {
     let mut interpreter = Interpreter::new();
-    interpreter.environment.insert("a".to_string(), 0i32);
+    interpreter.setVariable("a".to_string(), 0i32);
 
     let actual = interpreter.interpret(&Expression::While {
         condition: Box::new(Expression::BinaryExpression {
@@ -346,13 +456,13 @@ fn interpret_while() {
     });
 
     assert_eq!(1, actual);
-    assert_eq!(Some(&10i32), interpreter.environment.get(&"a".to_string()));
+    assert_eq!(Some(10i32), interpreter.getVariable("a".to_string()));
 }
 
 #[test]
 fn interpret_if_then() {
     let mut interpreter = Interpreter::new();
-    interpreter.environment.insert("a".to_string(), 0i32);
+    interpreter.setVariable("a".to_string(), 0i32);
 
     let actual = interpreter.interpret(&Expression::If {
         condition: Box::new(Expression::BinaryExpression {
@@ -371,13 +481,13 @@ fn interpret_if_then() {
     });
 
     assert_eq!(1, actual);
-    assert_eq!(Some(&1i32), interpreter.environment.get(&"b".to_string()));
+    assert_eq!(Some(1i32), interpreter.getVariable("b".to_string()));
 }
 
 #[test]
 fn interpret_if_else() {
     let mut interpreter = Interpreter::new();
-    interpreter.environment.insert("a".to_string(), 0i32);
+    interpreter.setVariable("a".to_string(), 0i32);
 
     let actual = interpreter.interpret(&Expression::If {
         condition: Box::new(Expression::BinaryExpression {
@@ -396,7 +506,35 @@ fn interpret_if_else() {
     });
 
     assert_eq!(2, actual);
-    assert_eq!(Some(&2i32), interpreter.environment.get(&"b".to_string()));
+    assert_eq!(Some(2i32), interpreter.getVariable("b".to_string()));
+}
+
+#[test]
+fn interpret_function_call() {
+    let mut interpreter = Interpreter::new();
+
+    let main_func = TopLevel::FunctionDefinition {
+        name: "main".to_string(),
+        args: vec![],
+        body: Expression::FunctionCall {
+            name: "hoge".to_string(),
+            args: vec![integer(1), integer(2)],
+        },
+    };
+    let hoge_func = TopLevel::FunctionDefinition {
+        name: "hoge".to_string(),
+        args: vec!["a".to_string(), "b".to_string()],
+        body: Expression::BinaryExpression {
+            operator: Operator::Add,
+            lhs: Box::new(Expression::Identifier("a".to_string())),
+            rhs: Box::new(Expression::Identifier("b".to_string())),
+        },
+    };
+
+    let top_level = vec![&main_func, &hoge_func];
+
+    let actual = interpreter.call_main(top_level);
+    assert_eq!(3, actual);
 }
 
 fn main() {
