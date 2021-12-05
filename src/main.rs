@@ -230,10 +230,11 @@ impl<'a> Interpreter<'a> {
             Expression::Block {
                 expressions: expressions,
             } => {
+                let mut ret = 0;
                 for exp in expressions {
-                    self.interpret(exp);
+                    ret = self.interpret(exp);
                 }
-                1
+                ret
             }
             Expression::While {
                 condition: condition,
@@ -429,10 +430,11 @@ fn interpret_block() {
                 name: "c".to_string(),
                 expression: Box::new(integer((3))),
             },
+            integer(4),
         ],
     });
 
-    assert_eq!(1, actual);
+    assert_eq!(4, actual);
     assert_eq!(Some(1i32), interpreter.getVariable("a".to_string()));
     assert_eq!(Some(2i32), interpreter.getVariable("b".to_string()));
     assert_eq!(Some(3i32), interpreter.getVariable("c".to_string()));
