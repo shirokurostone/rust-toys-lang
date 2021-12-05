@@ -539,6 +539,26 @@ fn interpret_function_call() {
 }
 
 #[test]
+fn test_global_variable_definition() {
+    let mut interpreter = Interpreter::new();
+
+    let var_def = TopLevel::GlobalVariableDefinition {
+        name: "hoge".to_string(),
+        expression: Box::new(integer(42)),
+    };
+    let main_func = TopLevel::FunctionDefinition {
+        name: "main".to_string(),
+        args: vec![],
+        body: Expression::Identifier("hoge".to_string()),
+    };
+
+    let top_level = vec![&var_def, &main_func];
+
+    let actual = interpreter.call_main(top_level);
+    assert_eq!(42, actual);
+}
+
+#[test]
 fn test_factorial() {
     let mut interpreter = Interpreter::new();
     let main_func = TopLevel::FunctionDefinition {
