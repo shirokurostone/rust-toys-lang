@@ -35,8 +35,163 @@ fn identifier(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
+fn program(input: &[u8]) -> IResult<&[u8], Vec<TopLevel>> {
+    many0((top_level_definition))(input)
+}
+
+fn top_level_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
+    alt((function_definition, global_variable_definition))(input)
+}
+
+fn function_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
+    match tuple((
+        tag("define"),
+        identifier,
+        tag("("),
+        identifier,
+        many0(tuple((tag(","), identifier))),
+        tag(")"),
+        block_expression,
+    ))(input)
+    {
+        Ok((input, (_, id, _, arg0, args_pairs, _, block))) => {
+            if let Expression::Identifier(s) = id {
+                let mut args = vec![];
+                if let Expression::Identifier(name) = arg0 {
+                    args.push(name);
+                } else {
+                    panic!();
+                }
+                for arg in args_pairs {
+                    if let Expression::Identifier(name) = arg.1 {
+                        args.push(name);
+                    } else {
+                        panic!();
+                    }
+                }
+                Ok((
+                    input,
+                    TopLevel::FunctionDefinition {
+                        name: s,
+                        args: args,
+                        body: block,
+                    },
+                ))
+            } else {
+                panic!();
+            }
+        }
+        Err(e) => Err(e),
+    }
+}
+
+fn global_variable_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
+    match tuple((tag("global"), identifier, tag("="), expression))(input) {
+        Ok((input, (_, id, _, exp))) => {
+            if let Expression::Identifier(s) = id {
+                Ok((
+                    input,
+                    TopLevel::GlobalVariableDefinition {
+                        name: s.to_string(),
+                        expression: Box::new(exp),
+                    },
+                ))
+            } else {
+                panic!();
+            }
+        }
+        Err(e) => Err(e),
+    }
+}
+
+fn lines(input: &[u8]) -> IResult<&[u8], Vec<Expression>> {
+    many0(line)(input)
+}
+
+fn line(input: &[u8]) -> IResult<&[u8], Expression> {
+    alt((
+        while_expression,
+        if_expression,
+        assignment,
+        expression_line,
+        block_expression,
+    ))(input)
+}
+
+fn if_expression(input: &[u8]) -> IResult<&[u8], Expression> {
+    match tuple((tag("if"), tag("("), expression, tag(")"), line))(input) {
+        Ok((input, (_, _, exp, _, then))) => match tuple((tag("else"), line))(input) {
+            Ok((input, (_, el))) => Ok((
+                input,
+                Expression::If {
+                    condition: Box::new(exp),
+                    then_clause: Box::new(then),
+                    else_clause: Some(Box::new(el)),
+                },
+            )),
+            Err(_) => Ok((
+                input,
+                Expression::If {
+                    condition: Box::new(exp),
+                    then_clause: Box::new(then),
+                    else_clause: None,
+                },
+            )),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+fn while_expression(input: &[u8]) -> IResult<&[u8], Expression> {
+    match tuple((tag("while"), tag("("), expression, tag(")"), line))(input) {
+        Ok((input, (_, _, exp, _, line))) => {
+            return Ok((
+                input,
+                Expression::While {
+                    condition: Box::new(exp),
+                    body: Box::new(line),
+                },
+            ))
+        }
+        Err(e) => Err(e),
+    }
+}
+
+fn block_expression(input: &[u8]) -> IResult<&[u8], Expression> {
+    match tuple((tag("{"), many0(line), tag("}")))(input) {
+        Ok((input, (_, lines, _))) => Ok((input, Expression::Block { expressions: lines })),
+        Err(e) => Err(e),
+    }
+}
+
+fn assignment(input: &[u8]) -> IResult<&[u8], Expression> {
+    match tuple((identifier, tag("="), expression, tag(";")))(input) {
+        Ok((input, (id, _, exp, _))) => {
+            if let Expression::Identifier(s) = id {
+                return Ok((
+                    input,
+                    Expression::Assignment {
+                        name: s.to_string(),
+                        expression: Box::new(exp),
+                    },
+                ));
+            } else {
+                panic!();
+            }
+        }
+        Err(e) => Err(e),
+    }
+}
+
+fn expression_line(input: &[u8]) -> IResult<&[u8], Expression> {
+    match tuple((expression, tag(";")))(input) {
+        Ok((input, (exp, _))) => Ok((input, exp)),
+        Err(e) => Err(e),
+    }
+}
+
 fn expression(input: &[u8]) -> IResult<&[u8], Expression> {
-    integer(input)
+    comparative(input)
 }
 
 fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
