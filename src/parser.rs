@@ -10,7 +10,7 @@ use std::str;
 
 use crate::interpreter::*;
 
-fn parse_integer(input: &[u8]) -> IResult<&[u8], Expression> {
+fn integer(input: &[u8]) -> IResult<&[u8], Expression> {
     let ret = take_while(is_digit)(input);
     match ret {
         Ok((input, digit)) => {
@@ -24,7 +24,7 @@ fn parse_integer(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
-fn parse_identifier(input: &[u8]) -> IResult<&[u8], Expression> {
+fn identifier(input: &[u8]) -> IResult<&[u8], Expression> {
     let ret = take_while(is_alphabetic)(input);
     match ret {
         Ok((input, s)) => {
@@ -35,16 +35,16 @@ fn parse_identifier(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
-fn parse_expression(input: &[u8]) -> IResult<&[u8], Expression> {
-    parse_integer(input)
+fn expression(input: &[u8]) -> IResult<&[u8], Expression> {
+    integer(input)
 }
 
-fn parse_comparative(input: &[u8]) -> IResult<&[u8], Expression> {
-    match parse_additive(input) {
+fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
+    match additive(input) {
         Ok((input, exp)) => {
             let ret = many0(tuple((
                 alt((tag("<"), tag(">"), tag("<="), tag(">="), tag("=="))),
-                parse_additive,
+                additive,
             )))(input);
 
             let mut cur = exp;
@@ -110,10 +110,10 @@ fn parse_comparative(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
-fn parse_additive(input: &[u8]) -> IResult<&[u8], Expression> {
-    match parse_multitive(input) {
+fn additive(input: &[u8]) -> IResult<&[u8], Expression> {
+    match multitive(input) {
         Ok((input, exp)) => {
-            let ret = many0(tuple((alt((tag("+"), tag("-"))), parse_multitive)))(input);
+            let ret = many0(tuple((alt((tag("+"), tag("-"))), multitive)))(input);
 
             let mut cur = exp;
             match ret {
@@ -150,10 +150,10 @@ fn parse_additive(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
-fn parse_multitive(input: &[u8]) -> IResult<&[u8], Expression> {
-    match parse_primary(input) {
+fn multitive(input: &[u8]) -> IResult<&[u8], Expression> {
+    match primary(input) {
         Ok((input, exp)) => {
-            let ret = many0(tuple((alt((tag("*"), tag("/"))), parse_primary)))(input);
+            let ret = many0(tuple((alt((tag("*"), tag("/"))), primary)))(input);
 
             let mut cur = exp;
             match ret {
@@ -190,27 +190,27 @@ fn parse_multitive(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
-fn parse_primary(input: &[u8]) -> IResult<&[u8], Expression> {
-    let ret = tuple((tag("("), parse_expression, tag(")")))(input);
+fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
+    let ret = tuple((tag("("), expression, tag(")")))(input);
     if let Ok((input, (_, exp, _))) = ret {
         return Ok((input, exp));
     }
 
-    let ret = parse_integer(input);
+    let ret = integer(input);
     if let Ok((input, exp)) = ret {
         return Ok((input, exp));
     }
 
-    parse_identifier(input)
+    identifier(input)
 }
 
-fn parse_function_call(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((parse_identifier, tag("(")))(input) {
+fn function_call(input: &[u8]) -> IResult<&[u8], Expression> {
+    match tuple((identifier, tag("(")))(input) {
         Ok((input, (name, _))) => {
             if let Expression::Identifier(name2) = name {
-                match parse_expression(input) {
+                match expression(input) {
                     Ok((input, exp1)) => {
-                        let ret = many0(tuple((tag(","), parse_expression)))(input);
+                        let ret = many0(tuple((tag(","), expression)))(input);
                         match ret {
                             Ok((input, v)) => {
                                 let mut args = vec![exp1];
