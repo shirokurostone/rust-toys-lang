@@ -1,8 +1,7 @@
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::bytes::streaming::take_while;
-use nom::character::is_alphabetic;
-use nom::character::is_digit;
+use nom::bytes::streaming::{take_while, take_while1};
+use nom::character::{is_alphabetic, is_digit};
 use nom::multi::many0;
 use nom::sequence::tuple;
 use nom::IResult;
@@ -11,7 +10,7 @@ use std::str;
 use crate::interpreter::*;
 
 fn integer(input: &[u8]) -> IResult<&[u8], Expression> {
-    let ret = take_while(is_digit)(input);
+    let ret = take_while1(is_digit)(input);
     match ret {
         Ok((input, digit)) => {
             let value = i32::from_str_radix(str::from_utf8(digit).unwrap(), 10).unwrap();
@@ -24,8 +23,26 @@ fn integer(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
+#[test]
+fn test_integer() {
+    let (input, exp) = integer(b"12345 ").unwrap();
+    assert_eq!(b" ", input);
+    match exp {
+        Expression::Literal(ptr) => match *ptr {
+            Literal::Integer(v) => {
+                assert_eq!(v, 12345);
+            }
+            _ => assert_eq!(true, false),
+        },
+        _ => assert_eq!(true, false),
+    }
+
+    integer(b"").unwrap_err();
+    integer(b"abc").unwrap_err();
+}
+
 fn identifier(input: &[u8]) -> IResult<&[u8], Expression> {
-    let ret = take_while(is_alphabetic)(input);
+    let ret = take_while1(is_alphabetic)(input);
     match ret {
         Ok((input, s)) => {
             let value = str::from_utf8(s).unwrap();
@@ -33,6 +50,21 @@ fn identifier(input: &[u8]) -> IResult<&[u8], Expression> {
         }
         Err(e) => Err(e),
     }
+}
+
+#[test]
+fn test_identifier() {
+    let (input, exp) = identifier(b"abc ").unwrap();
+    assert_eq!(b" ", input);
+    match exp {
+        Expression::Identifier(s) => {
+            assert_eq!("abc".to_string(), s);
+        }
+        _ => assert_eq!(true, false),
+    }
+
+    identifier(b"").unwrap_err();
+    identifier(b"12345").unwrap_err();
 }
 
 fn program(input: &[u8]) -> IResult<&[u8], Vec<TopLevel>> {
@@ -183,10 +215,46 @@ fn assignment(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
+#[test]
+fn test_assignment() {
+    let (input, exp) = assignment(b"abc=12345; ").unwrap();
+    assert_eq!(b" ", input);
+    match exp {
+        Expression::Assignment { name, expression } => {
+            assert_eq!("abc".to_string(), name);
+            match *expression {
+                Expression::Literal(ptr) => match *ptr {
+                    Literal::Integer(v) => {
+                        assert_eq!(v, 12345);
+                    }
+                    _ => assert_eq!(true, false),
+                },
+                _ => assert_eq!(true, false),
+            };
+        }
+        _ => assert_eq!(true, false),
+    }
+}
+
 fn expression_line(input: &[u8]) -> IResult<&[u8], Expression> {
     match tuple((expression, tag(";")))(input) {
         Ok((input, (exp, _))) => Ok((input, exp)),
         Err(e) => Err(e),
+    }
+}
+
+#[test]
+fn test_expression_line() {
+    let (input, exp) = expression_line(b"12345; ").unwrap();
+    assert_eq!(b" ", input);
+    match exp {
+        Expression::Literal(ptr) => match *ptr {
+            Literal::Integer(v) => {
+                assert_eq!(v, 12345);
+            }
+            _ => assert_eq!(true, false),
+        },
+        _ => assert_eq!(true, false),
     }
 }
 
@@ -265,6 +333,35 @@ fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
+#[test]
+fn test_comparative() {
+    let (input, exp) = comparative(b"1<2 ").unwrap();
+    assert_eq!(b" ", input);
+    match exp {
+        Expression::BinaryExpression {
+            operator: Operator::LessThan,
+            lhs,
+            rhs,
+        } => {
+            match *lhs {
+                Expression::Literal(l) => match *l {
+                    Literal::Integer(v) => assert_eq!(1, v),
+                    _ => assert_eq!(true, false),
+                },
+                _ => assert_eq!(true, false),
+            }
+            match *rhs {
+                Expression::Literal(l) => match *l {
+                    Literal::Integer(v) => assert_eq!(2, v),
+                    _ => assert_eq!(true, false),
+                },
+                _ => assert_eq!(true, false),
+            }
+        }
+        _ => assert_eq!(true, false),
+    }
+}
+
 fn additive(input: &[u8]) -> IResult<&[u8], Expression> {
     match multitive(input) {
         Ok((input, exp)) => {
@@ -302,6 +399,35 @@ fn additive(input: &[u8]) -> IResult<&[u8], Expression> {
             }
         }
         Err(e) => Err(e),
+    }
+}
+
+#[test]
+fn test_additive() {
+    let (input, exp) = additive(b"1+2 ").unwrap();
+    assert_eq!(b" ", input);
+    match exp {
+        Expression::BinaryExpression {
+            operator: Operator::Add,
+            lhs,
+            rhs,
+        } => {
+            match *lhs {
+                Expression::Literal(l) => match *l {
+                    Literal::Integer(v) => assert_eq!(1, v),
+                    _ => assert_eq!(true, false),
+                },
+                _ => assert_eq!(true, false),
+            }
+            match *rhs {
+                Expression::Literal(l) => match *l {
+                    Literal::Integer(v) => assert_eq!(2, v),
+                    _ => assert_eq!(true, false),
+                },
+                _ => assert_eq!(true, false),
+            }
+        }
+        _ => assert_eq!(true, false),
     }
 }
 
@@ -345,6 +471,35 @@ fn multitive(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
+#[test]
+fn test_multitive() {
+    let (input, exp) = multitive(b"1*2 ").unwrap();
+    assert_eq!(b" ", input);
+    match exp {
+        Expression::BinaryExpression {
+            operator: Operator::Multiply,
+            lhs,
+            rhs,
+        } => {
+            match *lhs {
+                Expression::Literal(l) => match *l {
+                    Literal::Integer(v) => assert_eq!(1, v),
+                    _ => assert_eq!(true, false),
+                },
+                _ => assert_eq!(true, false),
+            }
+            match *rhs {
+                Expression::Literal(l) => match *l {
+                    Literal::Integer(v) => assert_eq!(2, v),
+                    _ => assert_eq!(true, false),
+                },
+                _ => assert_eq!(true, false),
+            }
+        }
+        _ => assert_eq!(true, false),
+    }
+}
+
 fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
     let ret = tuple((tag("("), expression, tag(")")))(input);
     if let Ok((input, (_, exp, _))) = ret {
@@ -356,7 +511,64 @@ fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
         return Ok((input, exp));
     }
 
+    let ret = function_call(input);
+    if let Ok((input, exp)) = ret {
+        return Ok((input, exp));
+    }
+
     identifier(input)
+}
+
+#[test]
+fn test_primary() {
+    let (input, exp) = primary(b"(42) ").unwrap();
+    assert_eq!(b" ", input);
+    match exp {
+        Expression::Literal(ptr) => match *ptr {
+            Literal::Integer(v) => {
+                assert_eq!(v, 42);
+            }
+            _ => assert_eq!(true, false),
+        },
+        _ => assert_eq!(true, false),
+    }
+
+    let (input, exp) = primary(b"42 ").unwrap();
+    assert_eq!(b" ", input);
+    match exp {
+        Expression::Literal(ptr) => match *ptr {
+            Literal::Integer(v) => {
+                assert_eq!(v, 42);
+            }
+            _ => assert_eq!(true, false),
+        },
+        _ => assert_eq!(true, false),
+    }
+
+    let (input, exp) = primary(b"func(123) ").unwrap();
+    assert_eq!(b" ", input);
+    match exp {
+        Expression::FunctionCall { name, args } => {
+            assert_eq!("func".to_string(), name);
+            assert_eq!(1, args.len());
+            match &args[0] {
+                Expression::Literal(ptr) => match **ptr {
+                    Literal::Integer(v) => assert_eq!(123, v),
+                },
+                _ => assert_eq!(true, false),
+            }
+        }
+        _ => assert_eq!(true, false),
+    }
+
+    let (input, exp) = primary(b"abc ").unwrap();
+    assert_eq!(b" ", input);
+    match exp {
+        Expression::Identifier(s) => {
+            assert_eq!("abc".to_string(), s);
+        }
+        _ => assert_eq!(true, false),
+    }
 }
 
 fn function_call(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -365,9 +577,9 @@ fn function_call(input: &[u8]) -> IResult<&[u8], Expression> {
             if let Expression::Identifier(name2) = name {
                 match expression(input) {
                     Ok((input, exp1)) => {
-                        let ret = many0(tuple((tag(","), expression)))(input);
+                        let ret = tuple((many0(tuple((tag(","), expression))), tag(")")))(input);
                         match ret {
-                            Ok((input, v)) => {
+                            Ok((input, (v, _))) => {
                                 let mut args = vec![exp1];
                                 for pair in v {
                                     args.push(pair.1);
@@ -390,5 +602,24 @@ fn function_call(input: &[u8]) -> IResult<&[u8], Expression> {
             }
         }
         Err(e) => Err(e),
+    }
+}
+
+#[test]
+fn test_function_call() {
+    let (input, exp) = function_call(b"func(123) ").unwrap();
+    assert_eq!(b" ", input);
+    match exp {
+        Expression::FunctionCall { name, args } => {
+            assert_eq!("func".to_string(), name);
+            assert_eq!(1, args.len());
+            match &args[0] {
+                Expression::Literal(ptr) => match **ptr {
+                    Literal::Integer(v) => assert_eq!(123, v),
+                },
+                _ => assert_eq!(true, false),
+            }
+        }
+        _ => assert_eq!(true, false),
     }
 }
