@@ -104,6 +104,22 @@ fn function_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
     }
 }
 
+#[test]
+fn test_function_definition() {
+    let (input, exp) = function_definition(b"definefunc(abc){1;} ").unwrap();
+    assert_eq!(b" ", input);
+    assert_eq!(
+        TopLevel::FunctionDefinition {
+            name: "func".to_string(),
+            args: vec!["abc".to_string()],
+            body: Expression::Block {
+                expressions: vec![Expression::Literal(Box::new(Literal::Integer(1))),],
+            },
+        },
+        exp
+    );
+}
+
 fn global_variable_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
     match tuple((tag("global"), identifier, tag("="), expression))(input) {
         Ok((input, (_, id, _, exp))) => {
@@ -123,6 +139,19 @@ fn global_variable_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
     }
 }
 
+#[test]
+fn test_global_variable_definition() {
+    let (input, exp) = global_variable_definition(b"globalabc=123 ").unwrap();
+    assert_eq!(b" ", input);
+    assert_eq!(
+        TopLevel::GlobalVariableDefinition {
+            name: "abc".to_string(),
+            expression: Box::new(Expression::Literal(Box::new(Literal::Integer(123)))),
+        },
+        exp
+    );
+}
+
 fn lines(input: &[u8]) -> IResult<&[u8], Vec<Expression>> {
     many0(line)(input)
 }
@@ -135,6 +164,23 @@ fn line(input: &[u8]) -> IResult<&[u8], Expression> {
         expression_line,
         block_expression,
     ))(input)
+}
+
+#[test]
+fn test_line() {
+    let (input, exp) = line(b"abc=12345; ").unwrap();
+    assert_eq!(b" ", input);
+    assert_eq!(
+        Expression::Assignment {
+            name: "abc".to_string(),
+            expression: Box::new(Expression::Literal(Box::new(Literal::Integer(12345))))
+        },
+        exp
+    );
+
+    let (input, exp) = line(b"12345; ").unwrap();
+    assert_eq!(b" ", input);
+    assert_eq!(Expression::Literal(Box::new(Literal::Integer(12345))), exp);
 }
 
 fn if_expression(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -161,6 +207,31 @@ fn if_expression(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
+#[test]
+fn test_if_expression() {
+    let (input, exp) = if_expression(b"if(1)2;").unwrap();
+    assert_eq!(b"", input);
+    assert_eq!(
+        Expression::If {
+            condition: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
+            then_clause: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+            else_clause: None,
+        },
+        exp
+    );
+
+    let (input, exp) = if_expression(b"if(1)2;else3;").unwrap();
+    assert_eq!(b"", input);
+    assert_eq!(
+        Expression::If {
+            condition: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
+            then_clause: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+            else_clause: Some(Box::new(Expression::Literal(Box::new(Literal::Integer(3))))),
+        },
+        exp
+    );
+}
+
 fn while_expression(input: &[u8]) -> IResult<&[u8], Expression> {
     match tuple((tag("while"), tag("("), expression, tag(")"), line))(input) {
         Ok((input, (_, _, exp, _, line))) => {
@@ -176,11 +247,42 @@ fn while_expression(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
+#[test]
+fn test_while_expression() {
+    let (input, exp) = while_expression(b"while(1!=2){3;} ").unwrap();
+    assert_eq!(b" ", input);
+    assert_eq!(
+        Expression::While {
+            condition: Box::new(Expression::BinaryExpression {
+                operator: Operator::NotEqual,
+                lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
+                rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+            }),
+            body: Box::new(Expression::Block {
+                expressions: vec![Expression::Literal(Box::new(Literal::Integer(3)))],
+            },),
+        },
+        exp
+    );
+}
+
 fn block_expression(input: &[u8]) -> IResult<&[u8], Expression> {
     match tuple((tag("{"), many0(line), tag("}")))(input) {
         Ok((input, (_, lines, _))) => Ok((input, Expression::Block { expressions: lines })),
         Err(e) => Err(e),
     }
+}
+
+#[test]
+fn test_block_expression() {
+    let (input, exp) = block_expression(b"{1;} ").unwrap();
+    assert_eq!(b" ", input);
+    assert_eq!(
+        Expression::Block {
+            expressions: vec![Expression::Literal(Box::new(Literal::Integer(1))),],
+        },
+        exp
+    );
 }
 
 fn assignment(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -237,7 +339,14 @@ fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
     match additive(input) {
         Ok((input, exp)) => {
             let ret = many0(tuple((
-                alt((tag("<"), tag(">"), tag("<="), tag(">="), tag("=="))),
+                alt((
+                    tag("<"),
+                    tag(">"),
+                    tag("<="),
+                    tag(">="),
+                    tag("=="),
+                    tag("!="),
+                )),
                 additive,
             )))(input);
 
