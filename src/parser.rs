@@ -27,15 +27,7 @@ fn integer(input: &[u8]) -> IResult<&[u8], Expression> {
 fn test_integer() {
     let (input, exp) = integer(b"12345 ").unwrap();
     assert_eq!(b" ", input);
-    match exp {
-        Expression::Literal(ptr) => match *ptr {
-            Literal::Integer(v) => {
-                assert_eq!(v, 12345);
-            }
-            _ => assert_eq!(true, false),
-        },
-        _ => assert_eq!(true, false),
-    }
+    assert_eq!(Expression::Literal(Box::new(Literal::Integer(12345))), exp);
 
     integer(b"").unwrap_err();
     integer(b"abc").unwrap_err();
@@ -56,12 +48,7 @@ fn identifier(input: &[u8]) -> IResult<&[u8], Expression> {
 fn test_identifier() {
     let (input, exp) = identifier(b"abc ").unwrap();
     assert_eq!(b" ", input);
-    match exp {
-        Expression::Identifier(s) => {
-            assert_eq!("abc".to_string(), s);
-        }
-        _ => assert_eq!(true, false),
-    }
+    assert_eq!(Expression::Identifier("abc".to_string()), exp);
 
     identifier(b"").unwrap_err();
     identifier(b"12345").unwrap_err();
@@ -219,21 +206,13 @@ fn assignment(input: &[u8]) -> IResult<&[u8], Expression> {
 fn test_assignment() {
     let (input, exp) = assignment(b"abc=12345; ").unwrap();
     assert_eq!(b" ", input);
-    match exp {
-        Expression::Assignment { name, expression } => {
-            assert_eq!("abc".to_string(), name);
-            match *expression {
-                Expression::Literal(ptr) => match *ptr {
-                    Literal::Integer(v) => {
-                        assert_eq!(v, 12345);
-                    }
-                    _ => assert_eq!(true, false),
-                },
-                _ => assert_eq!(true, false),
-            };
-        }
-        _ => assert_eq!(true, false),
-    }
+    assert_eq!(
+        Expression::Assignment {
+            name: "abc".to_string(),
+            expression: Box::new(Expression::Literal(Box::new(Literal::Integer(12345))))
+        },
+        exp
+    );
 }
 
 fn expression_line(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -247,15 +226,7 @@ fn expression_line(input: &[u8]) -> IResult<&[u8], Expression> {
 fn test_expression_line() {
     let (input, exp) = expression_line(b"12345; ").unwrap();
     assert_eq!(b" ", input);
-    match exp {
-        Expression::Literal(ptr) => match *ptr {
-            Literal::Integer(v) => {
-                assert_eq!(v, 12345);
-            }
-            _ => assert_eq!(true, false),
-        },
-        _ => assert_eq!(true, false),
-    }
+    assert_eq!(Expression::Literal(Box::new(Literal::Integer(12345))), exp);
 }
 
 fn expression(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -337,29 +308,14 @@ fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
 fn test_comparative() {
     let (input, exp) = comparative(b"1<2 ").unwrap();
     assert_eq!(b" ", input);
-    match exp {
+    assert_eq!(
         Expression::BinaryExpression {
             operator: Operator::LessThan,
-            lhs,
-            rhs,
-        } => {
-            match *lhs {
-                Expression::Literal(l) => match *l {
-                    Literal::Integer(v) => assert_eq!(1, v),
-                    _ => assert_eq!(true, false),
-                },
-                _ => assert_eq!(true, false),
-            }
-            match *rhs {
-                Expression::Literal(l) => match *l {
-                    Literal::Integer(v) => assert_eq!(2, v),
-                    _ => assert_eq!(true, false),
-                },
-                _ => assert_eq!(true, false),
-            }
-        }
-        _ => assert_eq!(true, false),
-    }
+            lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
+            rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+        },
+        exp
+    );
 }
 
 fn additive(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -406,29 +362,14 @@ fn additive(input: &[u8]) -> IResult<&[u8], Expression> {
 fn test_additive() {
     let (input, exp) = additive(b"1+2 ").unwrap();
     assert_eq!(b" ", input);
-    match exp {
+    assert_eq!(
         Expression::BinaryExpression {
             operator: Operator::Add,
-            lhs,
-            rhs,
-        } => {
-            match *lhs {
-                Expression::Literal(l) => match *l {
-                    Literal::Integer(v) => assert_eq!(1, v),
-                    _ => assert_eq!(true, false),
-                },
-                _ => assert_eq!(true, false),
-            }
-            match *rhs {
-                Expression::Literal(l) => match *l {
-                    Literal::Integer(v) => assert_eq!(2, v),
-                    _ => assert_eq!(true, false),
-                },
-                _ => assert_eq!(true, false),
-            }
-        }
-        _ => assert_eq!(true, false),
-    }
+            lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
+            rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+        },
+        exp
+    );
 }
 
 fn multitive(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -475,29 +416,14 @@ fn multitive(input: &[u8]) -> IResult<&[u8], Expression> {
 fn test_multitive() {
     let (input, exp) = multitive(b"1*2 ").unwrap();
     assert_eq!(b" ", input);
-    match exp {
+    assert_eq!(
         Expression::BinaryExpression {
             operator: Operator::Multiply,
-            lhs,
-            rhs,
-        } => {
-            match *lhs {
-                Expression::Literal(l) => match *l {
-                    Literal::Integer(v) => assert_eq!(1, v),
-                    _ => assert_eq!(true, false),
-                },
-                _ => assert_eq!(true, false),
-            }
-            match *rhs {
-                Expression::Literal(l) => match *l {
-                    Literal::Integer(v) => assert_eq!(2, v),
-                    _ => assert_eq!(true, false),
-                },
-                _ => assert_eq!(true, false),
-            }
-        }
-        _ => assert_eq!(true, false),
-    }
+            lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
+            rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+        },
+        exp
+    );
 }
 
 fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -523,52 +449,25 @@ fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
 fn test_primary() {
     let (input, exp) = primary(b"(42) ").unwrap();
     assert_eq!(b" ", input);
-    match exp {
-        Expression::Literal(ptr) => match *ptr {
-            Literal::Integer(v) => {
-                assert_eq!(v, 42);
-            }
-            _ => assert_eq!(true, false),
-        },
-        _ => assert_eq!(true, false),
-    }
+    assert_eq!(Expression::Literal(Box::new(Literal::Integer(42))), exp);
 
     let (input, exp) = primary(b"42 ").unwrap();
     assert_eq!(b" ", input);
-    match exp {
-        Expression::Literal(ptr) => match *ptr {
-            Literal::Integer(v) => {
-                assert_eq!(v, 42);
-            }
-            _ => assert_eq!(true, false),
-        },
-        _ => assert_eq!(true, false),
-    }
+    assert_eq!(Expression::Literal(Box::new(Literal::Integer(42))), exp);
 
     let (input, exp) = primary(b"func(123) ").unwrap();
     assert_eq!(b" ", input);
-    match exp {
-        Expression::FunctionCall { name, args } => {
-            assert_eq!("func".to_string(), name);
-            assert_eq!(1, args.len());
-            match &args[0] {
-                Expression::Literal(ptr) => match **ptr {
-                    Literal::Integer(v) => assert_eq!(123, v),
-                },
-                _ => assert_eq!(true, false),
-            }
-        }
-        _ => assert_eq!(true, false),
-    }
+    assert_eq!(
+        Expression::FunctionCall {
+            name: "func".to_string(),
+            args: vec![Expression::Literal(Box::new(Literal::Integer(123)))],
+        },
+        exp
+    );
 
     let (input, exp) = primary(b"abc ").unwrap();
     assert_eq!(b" ", input);
-    match exp {
-        Expression::Identifier(s) => {
-            assert_eq!("abc".to_string(), s);
-        }
-        _ => assert_eq!(true, false),
-    }
+    assert_eq!(Expression::Identifier("abc".to_string()), exp);
 }
 
 fn function_call(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -609,17 +508,11 @@ fn function_call(input: &[u8]) -> IResult<&[u8], Expression> {
 fn test_function_call() {
     let (input, exp) = function_call(b"func(123) ").unwrap();
     assert_eq!(b" ", input);
-    match exp {
-        Expression::FunctionCall { name, args } => {
-            assert_eq!("func".to_string(), name);
-            assert_eq!(1, args.len());
-            match &args[0] {
-                Expression::Literal(ptr) => match **ptr {
-                    Literal::Integer(v) => assert_eq!(123, v),
-                },
-                _ => assert_eq!(true, false),
-            }
-        }
-        _ => assert_eq!(true, false),
-    }
+    assert_eq!(
+        Expression::FunctionCall {
+            name: "func".to_string(),
+            args: vec![Expression::Literal(Box::new(Literal::Integer(123)))],
+        },
+        exp
+    );
 }
