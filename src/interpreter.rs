@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::*;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TopLevel {
     FunctionDefinition {
         name: String,
@@ -15,7 +15,7 @@ pub enum TopLevel {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Expression {
     BinaryExpression {
         operator: Operator,
@@ -46,7 +46,7 @@ pub enum Expression {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Operator {
     Add,
     Subtract,
@@ -77,7 +77,7 @@ impl Operator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Literal {
     Integer(i32),
 }
