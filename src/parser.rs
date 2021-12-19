@@ -1,5 +1,5 @@
 use nom::branch::alt;
-use nom::bytes::complete::tag;
+use nom::bytes::complete::{is_a, tag};
 use nom::bytes::streaming::{take_while, take_while1};
 use nom::character::{is_alphabetic, is_digit};
 use nom::multi::many0;
@@ -8,6 +8,14 @@ use nom::IResult;
 use std::str;
 
 use crate::interpreter::*;
+
+fn space0(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    take_while(|c| c == b' ' || c == b'\t' || c == b'\n')(input)
+}
+
+fn space1(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    take_while1(|c| c == b' ' || c == b'\t' || c == b'\n')(input)
+}
 
 fn integer(input: &[u8]) -> IResult<&[u8], Expression> {
     let ret = take_while1(is_digit)(input);
@@ -65,15 +73,20 @@ fn top_level_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
 fn function_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
     match tuple((
         tag("define"),
+        space1,
         identifier,
+        space0,
         tag("("),
+        space0,
         identifier,
-        many0(tuple((tag(","), identifier))),
+        many0(tuple((space0, tag(","), space0, identifier))),
+        space0,
         tag(")"),
+        space0,
         block_expression,
     ))(input)
     {
-        Ok((input, (_, id, _, arg0, args_pairs, _, block))) => {
+        Ok((input, (_, _, id, _, _, _, arg0, args_pairs, _, _, _, block))) => {
             if let Expression::Identifier(s) = id {
                 let mut args = vec![];
                 if let Expression::Identifier(name) = arg0 {
@@ -82,7 +95,7 @@ fn function_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
                     panic!();
                 }
                 for arg in args_pairs {
-                    if let Expression::Identifier(name) = arg.1 {
+                    if let Expression::Identifier(name) = arg.3 {
                         args.push(name);
                     } else {
                         panic!();
@@ -106,7 +119,7 @@ fn function_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
 
 #[test]
 fn test_function_definition() {
-    let (input, exp) = function_definition(b"definefunc(abc){1;} ").unwrap();
+    let (input, exp) = function_definition(b"define func ( abc ) {1;} ").unwrap();
     assert_eq!(b" ", input);
     assert_eq!(
         TopLevel::FunctionDefinition {
@@ -121,8 +134,17 @@ fn test_function_definition() {
 }
 
 fn global_variable_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
-    match tuple((tag("global"), identifier, tag("="), expression))(input) {
-        Ok((input, (_, id, _, exp))) => {
+    match tuple((
+        tag("global"),
+        space1,
+        identifier,
+        space0,
+        tag("="),
+        space0,
+        expression,
+    ))(input)
+    {
+        Ok((input, (_, _, id, _, _, _, exp))) => {
             if let Expression::Identifier(s) = id {
                 Ok((
                     input,
@@ -141,8 +163,8 @@ fn global_variable_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
 
 #[test]
 fn test_global_variable_definition() {
-    let (input, exp) = global_variable_definition(b"globalabc=123 ").unwrap();
-    assert_eq!(b" ", input);
+    let (input, exp) = global_variable_definition(b"global abc=123;").unwrap();
+    assert_eq!(b";", input);
     assert_eq!(
         TopLevel::GlobalVariableDefinition {
             name: "abc".to_string(),
@@ -184,25 +206,38 @@ fn test_line() {
 }
 
 fn if_expression(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((tag("if"), tag("("), expression, tag(")"), line))(input) {
-        Ok((input, (_, _, exp, _, then))) => match tuple((tag("else"), line))(input) {
-            Ok((input, (_, el))) => Ok((
-                input,
-                Expression::If {
-                    condition: Box::new(exp),
-                    then_clause: Box::new(then),
-                    else_clause: Some(Box::new(el)),
-                },
-            )),
-            Err(_) => Ok((
-                input,
-                Expression::If {
-                    condition: Box::new(exp),
-                    then_clause: Box::new(then),
-                    else_clause: None,
-                },
-            )),
-        },
+    match tuple((
+        tag("if"),
+        space0,
+        tag("("),
+        space0,
+        expression,
+        space0,
+        tag(")"),
+        space0,
+        line,
+    ))(input)
+    {
+        Ok((input, (_, _, _, _, exp, _, _, _, then))) => {
+            match tuple((space0, tag("else"), space0, line))(input) {
+                Ok((input, (_, _, _, el))) => Ok((
+                    input,
+                    Expression::If {
+                        condition: Box::new(exp),
+                        then_clause: Box::new(then),
+                        else_clause: Some(Box::new(el)),
+                    },
+                )),
+                Err(_) => Ok((
+                    input,
+                    Expression::If {
+                        condition: Box::new(exp),
+                        then_clause: Box::new(then),
+                        else_clause: None,
+                    },
+                )),
+            }
+        }
         Err(e) => Err(e),
     }
 }
@@ -233,8 +268,19 @@ fn test_if_expression() {
 }
 
 fn while_expression(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((tag("while"), tag("("), expression, tag(")"), line))(input) {
-        Ok((input, (_, _, exp, _, line))) => {
+    match tuple((
+        tag("while"),
+        space0,
+        tag("("),
+        space0,
+        expression,
+        space0,
+        tag(")"),
+        space0,
+        line,
+    ))(input)
+    {
+        Ok((input, (_, _, _, _, exp, _, _, _, line))) => {
             return Ok((
                 input,
                 Expression::While {
@@ -267,8 +313,8 @@ fn test_while_expression() {
 }
 
 fn block_expression(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((tag("{"), many0(line), tag("}")))(input) {
-        Ok((input, (_, lines, _))) => Ok((input, Expression::Block { expressions: lines })),
+    match tuple((tag("{"), space0, many0(line), space0, tag("}")))(input) {
+        Ok((input, (_, _, lines, _, _))) => Ok((input, Expression::Block { expressions: lines })),
         Err(e) => Err(e),
     }
 }
@@ -286,8 +332,17 @@ fn test_block_expression() {
 }
 
 fn assignment(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((identifier, tag("="), expression, tag(";")))(input) {
-        Ok((input, (id, _, exp, _))) => {
+    match tuple((
+        identifier,
+        space0,
+        tag("="),
+        space0,
+        expression,
+        space0,
+        tag(";"),
+    ))(input)
+    {
+        Ok((input, (id, _, _, _, exp, _, _))) => {
             if let Expression::Identifier(s) = id {
                 return Ok((
                     input,
@@ -318,8 +373,8 @@ fn test_assignment() {
 }
 
 fn expression_line(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((expression, tag(";")))(input) {
-        Ok((input, (exp, _))) => Ok((input, exp)),
+    match tuple((expression, space0, tag(";")))(input) {
+        Ok((input, (exp, _, _))) => Ok((input, exp)),
         Err(e) => Err(e),
     }
 }
@@ -339,6 +394,7 @@ fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
     match additive(input) {
         Ok((input, exp)) => {
             let ret = many0(tuple((
+                space0,
                 alt((
                     tag("<"),
                     tag(">"),
@@ -347,6 +403,7 @@ fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
                     tag("=="),
                     tag("!="),
                 )),
+                space0,
                 additive,
             )))(input);
 
@@ -354,7 +411,7 @@ fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
             match ret {
                 Ok((input, v)) => {
                     for elem in v {
-                        let (op, ex) = elem;
+                        let (_, op, _, ex) = elem;
                         match op {
                             b"<" => {
                                 cur = Expression::BinaryExpression {
@@ -415,8 +472,8 @@ fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
 
 #[test]
 fn test_comparative() {
-    let (input, exp) = comparative(b"1<2 ").unwrap();
-    assert_eq!(b" ", input);
+    let (input, exp) = comparative(b"1<2;").unwrap();
+    assert_eq!(b";", input);
     assert_eq!(
         Expression::BinaryExpression {
             operator: Operator::LessThan,
@@ -430,13 +487,18 @@ fn test_comparative() {
 fn additive(input: &[u8]) -> IResult<&[u8], Expression> {
     match multitive(input) {
         Ok((input, exp)) => {
-            let ret = many0(tuple((alt((tag("+"), tag("-"))), multitive)))(input);
+            let ret = many0(tuple((
+                space0,
+                alt((tag("+"), tag("-"))),
+                space0,
+                multitive,
+            )))(input);
 
             let mut cur = exp;
             match ret {
                 Ok((input, v)) => {
                     for elem in v {
-                        let (op, ex) = elem;
+                        let (_, op, _, ex) = elem;
                         match op {
                             b"+" => {
                                 cur = Expression::BinaryExpression {
@@ -469,8 +531,8 @@ fn additive(input: &[u8]) -> IResult<&[u8], Expression> {
 
 #[test]
 fn test_additive() {
-    let (input, exp) = additive(b"1+2 ").unwrap();
-    assert_eq!(b" ", input);
+    let (input, exp) = additive(b"1+2;").unwrap();
+    assert_eq!(b";", input);
     assert_eq!(
         Expression::BinaryExpression {
             operator: Operator::Add,
@@ -484,13 +546,13 @@ fn test_additive() {
 fn multitive(input: &[u8]) -> IResult<&[u8], Expression> {
     match primary(input) {
         Ok((input, exp)) => {
-            let ret = many0(tuple((alt((tag("*"), tag("/"))), primary)))(input);
+            let ret = many0(tuple((space0, alt((tag("*"), tag("/"))), space0, primary)))(input);
 
             let mut cur = exp;
             match ret {
                 Ok((input, v)) => {
                     for elem in v {
-                        let (op, ex) = elem;
+                        let (_, op, _, ex) = elem;
                         match op {
                             b"*" => {
                                 cur = Expression::BinaryExpression {
@@ -523,8 +585,8 @@ fn multitive(input: &[u8]) -> IResult<&[u8], Expression> {
 
 #[test]
 fn test_multitive() {
-    let (input, exp) = multitive(b"1*2 ").unwrap();
-    assert_eq!(b" ", input);
+    let (input, exp) = multitive(b"1 * 2;").unwrap();
+    assert_eq!(b";", input);
     assert_eq!(
         Expression::BinaryExpression {
             operator: Operator::Multiply,
@@ -536,8 +598,8 @@ fn test_multitive() {
 }
 
 fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
-    let ret = tuple((tag("("), expression, tag(")")))(input);
-    if let Ok((input, (_, exp, _))) = ret {
+    let ret = tuple((tag("("), space0, expression, space0, tag(")")))(input);
+    if let Ok((input, (_, _, exp, _, _))) = ret {
         return Ok((input, exp));
     }
 
@@ -556,7 +618,7 @@ fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
 
 #[test]
 fn test_primary() {
-    let (input, exp) = primary(b"(42) ").unwrap();
+    let (input, exp) = primary(b"( 42 ) ").unwrap();
     assert_eq!(b" ", input);
     assert_eq!(Expression::Literal(Box::new(Literal::Integer(42))), exp);
 
@@ -580,17 +642,20 @@ fn test_primary() {
 }
 
 fn function_call(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((identifier, tag("(")))(input) {
-        Ok((input, (name, _))) => {
+    match tuple((identifier, space0, tag("("), space0))(input) {
+        Ok((input, (name, _, _, _))) => {
             if let Expression::Identifier(name2) = name {
                 match expression(input) {
                     Ok((input, exp1)) => {
-                        let ret = tuple((many0(tuple((tag(","), expression))), tag(")")))(input);
+                        let ret = tuple((
+                            many0(tuple((tag(","), space0, expression, space0))),
+                            tag(")"),
+                        ))(input);
                         match ret {
                             Ok((input, (v, _))) => {
                                 let mut args = vec![exp1];
                                 for pair in v {
-                                    args.push(pair.1);
+                                    args.push(pair.2);
                                 }
                                 Ok((
                                     input,
