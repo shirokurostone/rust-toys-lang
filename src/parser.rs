@@ -2,6 +2,7 @@ use nom::branch::alt;
 use nom::bytes::complete::{is_a, tag};
 use nom::bytes::streaming::{take_while, take_while1};
 use nom::character::{is_alphabetic, is_digit};
+use nom::combinator::opt;
 use nom::multi::many0;
 use nom::sequence::tuple;
 use nom::IResult;
@@ -82,29 +83,39 @@ fn function_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
         space0,
         tag("("),
         space0,
-        identifier,
-        many0(tuple((space0, tag(","), space0, identifier))),
-        space0,
+        opt(tuple((
+            identifier,
+            many0(tuple((space0, tag(","), space0, identifier))),
+            space0,
+        ))),
         tag(")"),
         space0,
         block_expression,
     ))(input)
     {
-        Ok((input, (_, _, id, _, _, _, arg0, args_pairs, _, _, _, block))) => {
+        Ok((input, (_, _, id, _, _, _, arg_opt, _, _, block))) => {
             if let Expression::Identifier(s) = id {
-                let mut args = vec![];
-                if let Expression::Identifier(name) = arg0 {
-                    args.push(name);
-                } else {
-                    panic!();
-                }
-                for arg in args_pairs {
-                    if let Expression::Identifier(name) = arg.3 {
-                        args.push(name);
-                    } else {
-                        panic!();
+                let args = match arg_opt {
+                    Some(t) => {
+                        let mut args = vec![];
+                        if let Expression::Identifier(arg0) = t.0 {
+                            args.push(arg0);
+                        } else {
+                            panic!();
+                        }
+
+                        for arg in t.1 {
+                            if let Expression::Identifier(argn) = arg.3 {
+                                args.push(argn);
+                            } else {
+                                panic!();
+                            }
+                        }
+                        args
                     }
-                }
+                    None => Vec::new(),
+                };
+
                 Ok((
                     input,
                     TopLevel::FunctionDefinition {
@@ -123,6 +134,19 @@ fn function_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
 
 #[test]
 fn test_function_definition() {
+    let (input, exp) = function_definition(b"define func ( ) {1;} ").unwrap();
+    assert_eq!(b" ", input);
+    assert_eq!(
+        TopLevel::FunctionDefinition {
+            name: "func".to_string(),
+            args: vec![],
+            body: Expression::Block {
+                expressions: vec![Expression::Literal(Box::new(Literal::Integer(1))),],
+            },
+        },
+        exp
+    );
+
     let (input, exp) = function_definition(b"define func ( abc ) {1;} ").unwrap();
     assert_eq!(b" ", input);
     assert_eq!(
