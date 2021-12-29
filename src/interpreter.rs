@@ -128,10 +128,10 @@ impl<'a> Interpreter<'a> {
                 {
                     self.interpret(body)
                 } else {
-                    0
+                    panic!();
                 }
             }
-            None => 0,
+            None => panic!(),
         }
     }
 
@@ -219,7 +219,7 @@ impl<'a> Interpreter<'a> {
             },
             Expression::Identifier(s) => match self.get_variable(s.to_string()) {
                 Some(v) => v,
-                None => 0,
+                None => panic!(),
             },
             Expression::Assignment {
                 name,
@@ -273,6 +273,10 @@ impl<'a> Interpreter<'a> {
                         body,
                     } = def
                     {
+                        if (actual_params.len() != formal_params.len()) {
+                            panic!();
+                        }
+
                         let mut values = Vec::new();
                         for param in actual_params {
                             values.push(self.interpret(param));
@@ -284,7 +288,7 @@ impl<'a> Interpreter<'a> {
                                 Some(v) => {
                                     env.insert(v.to_string(), values[i]);
                                 }
-                                None => (),
+                                None => panic!(),
                             }
                         }
 
@@ -294,7 +298,7 @@ impl<'a> Interpreter<'a> {
                     }
                     ret
                 }
-                None => 0,
+                None => panic!(),
             },
         }
     }
