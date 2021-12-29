@@ -62,6 +62,10 @@ fn test_identifier() {
     identifier(b"12345").unwrap_err();
 }
 
+pub fn parse(input: &[u8]) -> IResult<&[u8], Vec<TopLevel>> {
+    program(input)
+}
+
 fn program(input: &[u8]) -> IResult<&[u8], Vec<TopLevel>> {
     many0((top_level_definition))(input)
 }

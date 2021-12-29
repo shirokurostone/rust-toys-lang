@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::*;
+use crate::parser::*;
 
 #[derive(Debug, PartialEq)]
 pub enum TopLevel {
