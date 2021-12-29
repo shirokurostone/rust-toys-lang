@@ -273,7 +273,7 @@ impl<'a> Interpreter<'a> {
                         body,
                     } = def
                     {
-                        if (actual_params.len() != formal_params.len()) {
+                        if actual_params.len() != formal_params.len() {
                             panic!();
                         }
 

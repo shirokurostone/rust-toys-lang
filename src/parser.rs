@@ -1,5 +1,5 @@
 use nom::branch::alt;
-use nom::bytes::complete::{is_a, tag};
+use nom::bytes::complete::tag;
 use nom::bytes::streaming::{take_while, take_while1};
 use nom::character::{is_alphabetic, is_digit};
 use nom::combinator::opt;
@@ -66,8 +66,8 @@ fn test_identifier() {
 pub fn parse(input: String) -> Option<Vec<TopLevel>> {
     let target = input.as_bytes();
     match tuple((program, tag("__EOF__")))(target) {
-        Ok((input, t)) => Some(t.0),
-        Err(e) => None,
+        Ok((_, t)) => Some(t.0),
+        Err(_) => None,
     }
 }
 
