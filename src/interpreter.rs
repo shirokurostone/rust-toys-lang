@@ -22,7 +22,7 @@ pub enum Expression {
         lhs: Box<Expression>,
         rhs: Box<Expression>,
     },
-    Literal(Box<Literal>),
+    Literal(i32),
     Identifier(String),
     Assignment {
         name: String,
@@ -77,13 +77,8 @@ impl Operator {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Literal {
-    Integer(i32),
-}
-
 fn integer(value: i32) -> Expression {
-    Expression::Literal(Box::new(Literal::Integer(value)))
+    Expression::Literal(value)
 }
 
 pub struct Interpreter<'a> {
@@ -214,9 +209,7 @@ impl<'a> Interpreter<'a> {
                     }
                 }
             }
-            Expression::Literal(literal) => match &**literal {
-                Literal::Integer(value) => *value,
-            },
+            Expression::Literal(value) => *value,
             Expression::Identifier(s) => match self.get_variable(s.to_string()) {
                 Some(v) => v,
                 None => panic!(),
@@ -308,7 +301,7 @@ impl<'a> Interpreter<'a> {
 fn interpret_literal() {
     let mut interpreter = Interpreter::new();
 
-    let actual = interpreter.interpret(&Expression::Literal(Box::new(Literal::Integer(42))));
+    let actual = interpreter.interpret(&Expression::Literal(42));
 
     assert_eq!(42, actual);
 }

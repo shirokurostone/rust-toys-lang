@@ -23,10 +23,7 @@ fn integer(input: &[u8]) -> IResult<&[u8], Expression> {
     match ret {
         Ok((input, digit)) => {
             let value = i32::from_str_radix(str::from_utf8(digit).unwrap(), 10).unwrap();
-            Ok((
-                input,
-                Expression::Literal(Box::new(Literal::Integer(value))),
-            ))
+            Ok((input, Expression::Literal(value)))
         }
         Err(e) => Err(e),
     }
@@ -36,7 +33,7 @@ fn integer(input: &[u8]) -> IResult<&[u8], Expression> {
 fn test_integer() {
     let (input, exp) = integer(b"12345 ").unwrap();
     assert_eq!(b" ", input);
-    assert_eq!(Expression::Literal(Box::new(Literal::Integer(12345))), exp);
+    assert_eq!(Expression::Literal(12345), exp);
 
     integer(b"").unwrap_err();
     integer(b"abc").unwrap_err();
@@ -154,7 +151,7 @@ fn test_function_definition() {
             name: "func".to_string(),
             args: vec![],
             body: Expression::Block {
-                expressions: vec![Expression::Literal(Box::new(Literal::Integer(1))),],
+                expressions: vec![Expression::Literal(1),],
             },
         },
         exp
@@ -167,7 +164,7 @@ fn test_function_definition() {
             name: "func".to_string(),
             args: vec!["abc".to_string()],
             body: Expression::Block {
-                expressions: vec![Expression::Literal(Box::new(Literal::Integer(1))),],
+                expressions: vec![Expression::Literal(1),],
             },
         },
         exp
@@ -209,7 +206,7 @@ fn test_global_variable_definition() {
     assert_eq!(
         TopLevel::GlobalVariableDefinition {
             name: "abc".to_string(),
-            expression: Box::new(Expression::Literal(Box::new(Literal::Integer(123)))),
+            expression: Box::new(Expression::Literal(123)),
         },
         exp
     );
@@ -237,14 +234,14 @@ fn test_line() {
     assert_eq!(
         Expression::Assignment {
             name: "abc".to_string(),
-            expression: Box::new(Expression::Literal(Box::new(Literal::Integer(12345))))
+            expression: Box::new(Expression::Literal(12345))
         },
         exp
     );
 
     let (input, exp) = line(b"12345; ").unwrap();
     assert_eq!(b" ", input);
-    assert_eq!(Expression::Literal(Box::new(Literal::Integer(12345))), exp);
+    assert_eq!(Expression::Literal(12345), exp);
 }
 
 fn if_expression(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -290,8 +287,8 @@ fn test_if_expression() {
     assert_eq!(b"", input);
     assert_eq!(
         Expression::If {
-            condition: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
-            then_clause: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+            condition: Box::new(Expression::Literal(1)),
+            then_clause: Box::new(Expression::Literal(2)),
             else_clause: None,
         },
         exp
@@ -301,9 +298,9 @@ fn test_if_expression() {
     assert_eq!(b"", input);
     assert_eq!(
         Expression::If {
-            condition: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
-            then_clause: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
-            else_clause: Some(Box::new(Expression::Literal(Box::new(Literal::Integer(3))))),
+            condition: Box::new(Expression::Literal(1)),
+            then_clause: Box::new(Expression::Literal(2)),
+            else_clause: Some(Box::new(Expression::Literal(3))),
         },
         exp
     );
@@ -343,11 +340,11 @@ fn test_while_expression() {
         Expression::While {
             condition: Box::new(Expression::BinaryExpression {
                 operator: Operator::NotEqual,
-                lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
-                rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+                lhs: Box::new(Expression::Literal(1)),
+                rhs: Box::new(Expression::Literal(2)),
             }),
             body: Box::new(Expression::Block {
-                expressions: vec![Expression::Literal(Box::new(Literal::Integer(3)))],
+                expressions: vec![Expression::Literal(3)],
             },),
         },
         exp
@@ -401,9 +398,7 @@ fn for_in_expression(input: &[u8]) -> IResult<&[u8], Expression> {
                                                 lhs: Box::new(Expression::Identifier(
                                                     String::from(&name),
                                                 )),
-                                                rhs: Box::new(Expression::Literal(Box::new(
-                                                    Literal::Integer(1),
-                                                ))),
+                                                rhs: Box::new(Expression::Literal(1)),
                                             }),
                                         },
                                     ],
@@ -429,25 +424,23 @@ fn test_for_in_expression() {
             expressions: vec![
                 Expression::Assignment {
                     name: "i".to_string(),
-                    expression: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
+                    expression: Box::new(Expression::Literal(1)),
                 },
                 Expression::While {
                     condition: Box::new(Expression::BinaryExpression {
                         operator: Operator::LessThan,
                         lhs: Box::new(Expression::Identifier("i".to_string())),
-                        rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(10)))),
+                        rhs: Box::new(Expression::Literal(10)),
                     }),
                     body: Box::new(Expression::Block {
                         expressions: vec![
-                            Expression::Literal(Box::new(Literal::Integer(3))),
+                            Expression::Literal(3),
                             Expression::Assignment {
                                 name: "i".to_string(),
                                 expression: Box::new(Expression::BinaryExpression {
                                     operator: Operator::Add,
                                     lhs: Box::new(Expression::Identifier("i".to_string())),
-                                    rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(
-                                        1
-                                    )))),
+                                    rhs: Box::new(Expression::Literal(1)),
                                 }),
                             },
                         ],
@@ -472,7 +465,7 @@ fn test_block_expression() {
     assert_eq!(b" ", input);
     assert_eq!(
         Expression::Block {
-            expressions: vec![Expression::Literal(Box::new(Literal::Integer(1))),],
+            expressions: vec![Expression::Literal(1),],
         },
         exp
     );
@@ -513,7 +506,7 @@ fn test_assignment() {
     assert_eq!(
         Expression::Assignment {
             name: "abc".to_string(),
-            expression: Box::new(Expression::Literal(Box::new(Literal::Integer(12345))))
+            expression: Box::new(Expression::Literal(12345))
         },
         exp
     );
@@ -530,7 +523,7 @@ fn expression_line(input: &[u8]) -> IResult<&[u8], Expression> {
 fn test_expression_line() {
     let (input, exp) = expression_line(b"12345; ").unwrap();
     assert_eq!(b" ", input);
-    assert_eq!(Expression::Literal(Box::new(Literal::Integer(12345))), exp);
+    assert_eq!(Expression::Literal(12345), exp);
 }
 
 fn expression(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -624,8 +617,8 @@ fn test_comparative() {
     assert_eq!(
         Expression::BinaryExpression {
             operator: Operator::LessThan,
-            lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
-            rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+            lhs: Box::new(Expression::Literal(1)),
+            rhs: Box::new(Expression::Literal(2)),
         },
         exp
     );
@@ -683,8 +676,8 @@ fn test_additive() {
     assert_eq!(
         Expression::BinaryExpression {
             operator: Operator::Add,
-            lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
-            rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+            lhs: Box::new(Expression::Literal(1)),
+            rhs: Box::new(Expression::Literal(2)),
         },
         exp
     );
@@ -737,8 +730,8 @@ fn test_multitive() {
     assert_eq!(
         Expression::BinaryExpression {
             operator: Operator::Multiply,
-            lhs: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
-            rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(2)))),
+            lhs: Box::new(Expression::Literal(1)),
+            rhs: Box::new(Expression::Literal(2)),
         },
         exp
     );
@@ -767,18 +760,18 @@ fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
 fn test_primary() {
     let (input, exp) = primary(b"( 42 ) ").unwrap();
     assert_eq!(b" ", input);
-    assert_eq!(Expression::Literal(Box::new(Literal::Integer(42))), exp);
+    assert_eq!(Expression::Literal(42), exp);
 
     let (input, exp) = primary(b"42 ").unwrap();
     assert_eq!(b" ", input);
-    assert_eq!(Expression::Literal(Box::new(Literal::Integer(42))), exp);
+    assert_eq!(Expression::Literal(42), exp);
 
     let (input, exp) = primary(b"func(123) ").unwrap();
     assert_eq!(b" ", input);
     assert_eq!(
         Expression::FunctionCall {
             name: "func".to_string(),
-            args: vec![Expression::Literal(Box::new(Literal::Integer(123)))],
+            args: vec![Expression::Literal(123)],
         },
         exp
     );
@@ -832,7 +825,7 @@ fn test_function_call() {
     assert_eq!(
         Expression::FunctionCall {
             name: "func".to_string(),
-            args: vec![Expression::Literal(Box::new(Literal::Integer(123)))],
+            args: vec![Expression::Literal(123)],
         },
         exp
     );
