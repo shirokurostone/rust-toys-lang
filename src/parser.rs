@@ -63,12 +63,25 @@ fn test_identifier() {
     identifier(b"12345").unwrap_err();
 }
 
-pub fn parse(input: &[u8]) -> IResult<&[u8], Vec<TopLevel>> {
-    program(input)
+pub fn parse(input: String) -> Option<Vec<TopLevel>> {
+    let target = input.as_bytes();
+    match tuple((program, tag("__EOF__")))(target) {
+        Ok((input, t)) => Some(t.0),
+        Err(e) => None,
+    }
 }
 
 fn program(input: &[u8]) -> IResult<&[u8], Vec<TopLevel>> {
-    many0((top_level_definition))(input)
+    match many0(tuple((top_level_definition, space0)))(input) {
+        Ok((input, top_level_vec)) => {
+            let mut ret = Vec::new();
+            for top in top_level_vec {
+                ret.push(top.0);
+            }
+            Ok((input, ret))
+        }
+        Err(e) => Err(e),
+    }
 }
 
 fn top_level_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
