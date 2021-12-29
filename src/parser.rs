@@ -222,6 +222,7 @@ fn lines(input: &[u8]) -> IResult<&[u8], Vec<Expression>> {
 fn line(input: &[u8]) -> IResult<&[u8], Expression> {
     alt((
         while_expression,
+        for_in_expression,
         if_expression,
         assignment,
         expression_line,
@@ -348,6 +349,111 @@ fn test_while_expression() {
             body: Box::new(Expression::Block {
                 expressions: vec![Expression::Literal(Box::new(Literal::Integer(3)))],
             },),
+        },
+        exp
+    );
+}
+
+fn for_in_expression(input: &[u8]) -> IResult<&[u8], Expression> {
+    match tuple((
+        tag("for"),
+        space0,
+        tag("("),
+        space0,
+        identifier,
+        space1,
+        tag("in"),
+        space1,
+        expression,
+        space1,
+        tag("to"),
+        space1,
+        expression,
+        space0,
+        tag(")"),
+        space0,
+        line,
+    ))(input)
+    {
+        Ok((input, (_, _, _, _, id, _, _, _, exp0, _, _, _, exp1, _, _, _, line))) => {
+            if let Expression::Identifier(name) = id {
+                Ok((
+                    input,
+                    Expression::Block {
+                        expressions: vec![
+                            Expression::Assignment {
+                                name: String::from(&name),
+                                expression: Box::new(exp0),
+                            },
+                            Expression::While {
+                                condition: Box::new(Expression::BinaryExpression {
+                                    operator: Operator::LessThan,
+                                    lhs: Box::new(Expression::Identifier(String::from(&name))),
+                                    rhs: Box::new(exp1),
+                                }),
+                                body: Box::new(Expression::Block {
+                                    expressions: vec![
+                                        line,
+                                        Expression::Assignment {
+                                            name: String::from(&name),
+                                            expression: Box::new(Expression::BinaryExpression {
+                                                operator: Operator::Add,
+                                                lhs: Box::new(Expression::Identifier(
+                                                    String::from(&name),
+                                                )),
+                                                rhs: Box::new(Expression::Literal(Box::new(
+                                                    Literal::Integer(1),
+                                                ))),
+                                            }),
+                                        },
+                                    ],
+                                }),
+                            },
+                        ],
+                    },
+                ))
+            } else {
+                panic!();
+            }
+        }
+        Err(e) => Err(e),
+    }
+}
+
+#[test]
+fn test_for_in_expression() {
+    let (input, exp) = for_in_expression(b"for( i in 1 to 10)3; ").unwrap();
+    assert_eq!(b" ", input);
+    assert_eq!(
+        Expression::Block {
+            expressions: vec![
+                Expression::Assignment {
+                    name: "i".to_string(),
+                    expression: Box::new(Expression::Literal(Box::new(Literal::Integer(1)))),
+                },
+                Expression::While {
+                    condition: Box::new(Expression::BinaryExpression {
+                        operator: Operator::LessThan,
+                        lhs: Box::new(Expression::Identifier("i".to_string())),
+                        rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(10)))),
+                    }),
+                    body: Box::new(Expression::Block {
+                        expressions: vec![
+                            Expression::Literal(Box::new(Literal::Integer(3))),
+                            Expression::Assignment {
+                                name: "i".to_string(),
+                                expression: Box::new(Expression::BinaryExpression {
+                                    operator: Operator::Add,
+                                    lhs: Box::new(Expression::Identifier("i".to_string())),
+                                    rhs: Box::new(Expression::Literal(Box::new(Literal::Integer(
+                                        1
+                                    )))),
+                                }),
+                            },
+                        ],
+                    })
+                }
+            ],
         },
         exp
     );
