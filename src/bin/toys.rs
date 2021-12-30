@@ -1,12 +1,9 @@
-pub mod interpreter;
-pub mod parser;
-
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 
-use crate::interpreter::*;
-use crate::parser::*;
+use rust_toys_lang::interpreter::*;
+use rust_toys_lang::parser::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();

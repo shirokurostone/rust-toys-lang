@@ -9,8 +9,8 @@ use nom::sequence::tuple;
 use nom::IResult;
 use std::str;
 
-use crate::interpreter::*;
 use crate::interpreter::Expression::*;
+use crate::interpreter::*;
 
 fn space0(input: &[u8]) -> IResult<&[u8], &[u8]> {
     multispace0(input)
@@ -399,9 +399,7 @@ fn for_in_expression(input: &[u8]) -> IResult<&[u8], Expression> {
                                             name: String::from(&name),
                                             expression: Box::new(BinaryExpression {
                                                 operator: Operator::Add,
-                                                lhs: Box::new(Identifier(
-                                                    String::from(&name),
-                                                )),
+                                                lhs: Box::new(Identifier(String::from(&name))),
                                                 rhs: Box::new(Literal(1)),
                                             }),
                                         },
