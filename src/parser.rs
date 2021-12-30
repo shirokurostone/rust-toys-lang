@@ -1,6 +1,7 @@
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::bytes::streaming::{take_while, take_while1};
+use nom::character::complete::{digit1, multispace0, multispace1};
 use nom::character::{is_alphabetic, is_digit};
 use nom::combinator::opt;
 use nom::multi::many0;
@@ -11,16 +12,15 @@ use std::str;
 use crate::interpreter::*;
 
 fn space0(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    take_while(|c| c == b' ' || c == b'\t' || c == b'\n')(input)
+    multispace0(input)
 }
 
 fn space1(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    take_while1(|c| c == b' ' || c == b'\t' || c == b'\n')(input)
+    multispace1(input)
 }
 
 fn integer(input: &[u8]) -> IResult<&[u8], Expression> {
-    let ret = take_while1(is_digit)(input);
-    match ret {
+    match digit1(input) {
         Ok((input, digit)) => {
             let value = i32::from_str_radix(str::from_utf8(digit).unwrap(), 10).unwrap();
             Ok((input, Expression::Literal(value)))
