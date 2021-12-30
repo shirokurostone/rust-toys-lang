@@ -75,6 +75,12 @@ pub struct Interpreter<'a> {
     function_environment: HashMap<String, &'a TopLevel>,
 }
 
+impl<'a> Default for Interpreter<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> Interpreter<'a> {
     pub fn new() -> Interpreter<'a> {
         let mut i = Interpreter {
@@ -131,12 +137,10 @@ impl<'a> Interpreter<'a> {
     pub fn set_variable(&mut self, name: String, value: i32) -> Option<i32> {
         for env in self.environments.iter_mut().rev() {
             if env.contains_key(&name) {
-                return env.insert(name.to_string(), value);
+                return env.insert(name, value);
             }
         }
-        self.environments
-            .last_mut()?
-            .insert(name.to_string(), value);
+        self.environments.last_mut()?.insert(name, value);
         None
     }
 
@@ -265,13 +269,8 @@ impl<'a> Interpreter<'a> {
                         }
 
                         let mut env = HashMap::<String, i32>::new();
-                        for i in 0..(formal_params.len()) {
-                            match formal_params.get(i) {
-                                Some(v) => {
-                                    env.insert(v.to_string(), values[i]);
-                                }
-                                None => panic!(),
-                            }
+                        for (i, fp) in formal_params.iter().enumerate().take(formal_params.len()) {
+                            env.insert(fp.to_string(), values[i]);
                         }
 
                         self.environments.push(env);

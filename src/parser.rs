@@ -23,7 +23,7 @@ fn space1(input: &[u8]) -> IResult<&[u8], &[u8]> {
 fn integer(input: &[u8]) -> IResult<&[u8], Expression> {
     match digit1(input) {
         Ok((input, digit)) => {
-            let value = i32::from_str_radix(str::from_utf8(digit).unwrap(), 10).unwrap();
+            let value = str::from_utf8(digit).unwrap().parse::<i32>().unwrap();
             Ok((input, Literal(value)))
         }
         Err(e) => Err(e),
@@ -131,7 +131,7 @@ fn function_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
                     input,
                     TopLevel::FunctionDefinition {
                         name: s,
-                        args: args,
+                        args,
                         body: block,
                     },
                 ))
@@ -188,7 +188,7 @@ fn global_variable_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
                 Ok((
                     input,
                     TopLevel::GlobalVariableDefinition {
-                        name: s.to_string(),
+                        name: s,
                         expression: Box::new(exp),
                     },
                 ))
@@ -323,15 +323,13 @@ fn while_expression(input: &[u8]) -> IResult<&[u8], Expression> {
         line,
     ))(input)
     {
-        Ok((input, (_, _, _, _, exp, _, _, _, line))) => {
-            return Ok((
-                input,
-                While {
-                    condition: Box::new(exp),
-                    body: Box::new(line),
-                },
-            ))
-        }
+        Ok((input, (_, _, _, _, exp, _, _, _, line))) => Ok((
+            input,
+            While {
+                condition: Box::new(exp),
+                body: Box::new(line),
+            },
+        )),
         Err(e) => Err(e),
     }
 }
@@ -486,13 +484,13 @@ fn assignment(input: &[u8]) -> IResult<&[u8], Expression> {
     {
         Ok((input, (id, _, _, _, exp, _, _))) => {
             if let Identifier(s) = id {
-                return Ok((
+                Ok((
                     input,
                     Assignment {
-                        name: s.to_string(),
+                        name: s,
                         expression: Box::new(exp),
                     },
-                ));
+                ))
             } else {
                 panic!();
             }
@@ -748,13 +746,7 @@ fn function_call(input: &[u8]) -> IResult<&[u8], Expression> {
                                 for pair in v {
                                     args.push(pair.2);
                                 }
-                                Ok((
-                                    input,
-                                    FunctionCall {
-                                        name: name2,
-                                        args: args,
-                                    },
-                                ))
+                                Ok((input, FunctionCall { name: name2, args }))
                             }
                             Err(e) => Err(e),
                         }
@@ -789,7 +781,7 @@ fn labelled_patameter(input: &[u8]) -> IResult<&[u8], LabelledParameter> {
                 Ok((
                     input,
                     LabelledParameter {
-                        name: name,
+                        name,
                         expression: Box::new(exp),
                     },
                 ))
@@ -841,13 +833,7 @@ fn labelled_call(input: &[u8]) -> IResult<&[u8], Expression> {
                     None => Vec::new(),
                 };
 
-                Ok((
-                    input,
-                    LabelledCall {
-                        name: s,
-                        args: args,
-                    },
-                ))
+                Ok((input, LabelledCall { name: s, args }))
             } else {
                 panic!();
             }
