@@ -27,31 +27,11 @@ fn integer(input: &[u8]) -> IResult<&[u8], Expression> {
     })
 }
 
-#[test]
-fn test_integer() {
-    let (input, exp) = integer(b"12345 ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(Literal(12345), exp);
-
-    integer(b"").unwrap_err();
-    integer(b"abc").unwrap_err();
-}
-
 fn identifier(input: &[u8]) -> IResult<&[u8], Expression> {
     take_while1(is_alphabetic)(input).map(|(input, s)| {
         let value = str::from_utf8(s).unwrap();
         (input, Identifier(value.to_string()))
     })
-}
-
-#[test]
-fn test_identifier() {
-    let (input, exp) = identifier(b"abc ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(Identifier("abc".to_string()), exp);
-
-    identifier(b"").unwrap_err();
-    identifier(b"12345").unwrap_err();
 }
 
 pub fn parse(input: String) -> Option<Vec<TopLevel>> {
@@ -130,35 +110,6 @@ fn function_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
     })
 }
 
-#[test]
-fn test_function_definition() {
-    let (input, exp) = function_definition(b"define func ( ) {1;} ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(
-        TopLevel::FunctionDefinition {
-            name: "func".to_string(),
-            args: vec![],
-            body: Block {
-                expressions: vec![Literal(1),],
-            },
-        },
-        exp
-    );
-
-    let (input, exp) = function_definition(b"define func ( abc ) {1;} ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(
-        TopLevel::FunctionDefinition {
-            name: "func".to_string(),
-            args: vec!["abc".to_string()],
-            body: Block {
-                expressions: vec![Literal(1),],
-            },
-        },
-        exp
-    );
-}
-
 fn global_variable_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
     tuple((
         tag("global"),
@@ -184,19 +135,6 @@ fn global_variable_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
     })
 }
 
-#[test]
-fn test_global_variable_definition() {
-    let (input, exp) = global_variable_definition(b"global abc=123;").unwrap();
-    assert_eq!(b";", input);
-    assert_eq!(
-        TopLevel::GlobalVariableDefinition {
-            name: "abc".to_string(),
-            expression: Box::new(Literal(123)),
-        },
-        exp
-    );
-}
-
 fn line(input: &[u8]) -> IResult<&[u8], Expression> {
     tuple((
         alt((
@@ -210,23 +148,6 @@ fn line(input: &[u8]) -> IResult<&[u8], Expression> {
         space0,
     ))(input)
     .map(|(input, (exp, _))| (input, exp))
-}
-
-#[test]
-fn test_line() {
-    let (input, exp) = line(b"abc=12345; ").unwrap();
-    assert_eq!(b"", input);
-    assert_eq!(
-        Assignment {
-            name: "abc".to_string(),
-            expression: Box::new(Literal(12345))
-        },
-        exp
-    );
-
-    let (input, exp) = line(b"12345; ").unwrap();
-    assert_eq!(b"", input);
-    assert_eq!(Literal(12345), exp);
 }
 
 fn if_expression(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -263,31 +184,6 @@ fn if_expression(input: &[u8]) -> IResult<&[u8], Expression> {
     })
 }
 
-#[test]
-fn test_if_expression() {
-    let (input, exp) = if_expression(b"if(1)2;").unwrap();
-    assert_eq!(b"", input);
-    assert_eq!(
-        If {
-            condition: Box::new(Literal(1)),
-            then_clause: Box::new(Literal(2)),
-            else_clause: None,
-        },
-        exp
-    );
-
-    let (input, exp) = if_expression(b"if(1)2;else3;").unwrap();
-    assert_eq!(b"", input);
-    assert_eq!(
-        If {
-            condition: Box::new(Literal(1)),
-            then_clause: Box::new(Literal(2)),
-            else_clause: Some(Box::new(Literal(3))),
-        },
-        exp
-    );
-}
-
 fn while_expression(input: &[u8]) -> IResult<&[u8], Expression> {
     tuple((
         tag("while"),
@@ -309,25 +205,6 @@ fn while_expression(input: &[u8]) -> IResult<&[u8], Expression> {
             },
         )
     })
-}
-
-#[test]
-fn test_while_expression() {
-    let (input, exp) = while_expression(b"while(1!=2){3;} ").unwrap();
-    assert_eq!(b"", input);
-    assert_eq!(
-        While {
-            condition: Box::new(BinaryExpression {
-                operator: Operator::NotEqual,
-                lhs: Box::new(Literal(1)),
-                rhs: Box::new(Literal(2)),
-            }),
-            body: Box::new(Block {
-                expressions: vec![Literal(3)],
-            },),
-        },
-        exp
-    );
 }
 
 fn for_in_expression(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -391,58 +268,9 @@ fn for_in_expression(input: &[u8]) -> IResult<&[u8], Expression> {
     )
 }
 
-#[test]
-fn test_for_in_expression() {
-    let (input, exp) = for_in_expression(b"for( i in 1 to 10)3; ").unwrap();
-    assert_eq!(b"", input);
-    assert_eq!(
-        Block {
-            expressions: vec![
-                Assignment {
-                    name: "i".to_string(),
-                    expression: Box::new(Literal(1)),
-                },
-                While {
-                    condition: Box::new(BinaryExpression {
-                        operator: Operator::LessThan,
-                        lhs: Box::new(Identifier("i".to_string())),
-                        rhs: Box::new(Literal(10)),
-                    }),
-                    body: Box::new(Block {
-                        expressions: vec![
-                            Literal(3),
-                            Assignment {
-                                name: "i".to_string(),
-                                expression: Box::new(BinaryExpression {
-                                    operator: Operator::Add,
-                                    lhs: Box::new(Identifier("i".to_string())),
-                                    rhs: Box::new(Literal(1)),
-                                }),
-                            },
-                        ],
-                    })
-                }
-            ],
-        },
-        exp
-    );
-}
-
 fn block_expression(input: &[u8]) -> IResult<&[u8], Expression> {
     tuple((tag("{"), space0, many0(line), space0, tag("}")))(input)
         .map(|(input, (_, _, lines, _, _))| (input, Block { expressions: lines }))
-}
-
-#[test]
-fn test_block_expression() {
-    let (input, exp) = block_expression(b"{1;} ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(
-        Block {
-            expressions: vec![Literal(1),],
-        },
-        exp
-    );
 }
 
 fn assignment(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -470,28 +298,8 @@ fn assignment(input: &[u8]) -> IResult<&[u8], Expression> {
     })
 }
 
-#[test]
-fn test_assignment() {
-    let (input, exp) = assignment(b"abc=12345; ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(
-        Assignment {
-            name: "abc".to_string(),
-            expression: Box::new(Literal(12345))
-        },
-        exp
-    );
-}
-
 fn expression_line(input: &[u8]) -> IResult<&[u8], Expression> {
     tuple((expression, space0, tag(";")))(input).map(|(input, (exp, _, _))| (input, exp))
-}
-
-#[test]
-fn test_expression_line() {
-    let (input, exp) = expression_line(b"12345; ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(Literal(12345), exp);
 }
 
 fn expression(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -539,20 +347,6 @@ fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
-#[test]
-fn test_comparative() {
-    let (input, exp) = comparative(b"1<2;").unwrap();
-    assert_eq!(b";", input);
-    assert_eq!(
-        BinaryExpression {
-            operator: Operator::LessThan,
-            lhs: Box::new(Literal(1)),
-            rhs: Box::new(Literal(2)),
-        },
-        exp
-    );
-}
-
 fn additive(input: &[u8]) -> IResult<&[u8], Expression> {
     match multitive(input) {
         Ok((input, exp)) => {
@@ -584,20 +378,6 @@ fn additive(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
-#[test]
-fn test_additive() {
-    let (input, exp) = additive(b"1+2;").unwrap();
-    assert_eq!(b";", input);
-    assert_eq!(
-        BinaryExpression {
-            operator: Operator::Add,
-            lhs: Box::new(Literal(1)),
-            rhs: Box::new(Literal(2)),
-        },
-        exp
-    );
-}
-
 fn multitive(input: &[u8]) -> IResult<&[u8], Expression> {
     match primary(input) {
         Ok((input, exp)) => {
@@ -625,20 +405,6 @@ fn multitive(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 }
 
-#[test]
-fn test_multitive() {
-    let (input, exp) = multitive(b"1 * 2;").unwrap();
-    assert_eq!(b";", input);
-    assert_eq!(
-        BinaryExpression {
-            operator: Operator::Multiply,
-            lhs: Box::new(Literal(1)),
-            rhs: Box::new(Literal(2)),
-        },
-        exp
-    );
-}
-
 fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
     let ret = tuple((tag("("), space0, expression, space0, tag(")")))(input);
     if let Ok((input, (_, _, exp, _, _))) = ret {
@@ -646,44 +412,6 @@ fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
     }
 
     alt((integer, function_call, labelled_call, identifier))(input)
-}
-
-#[test]
-fn test_primary() {
-    let (input, exp) = primary(b"( 42 ) ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(Literal(42), exp);
-
-    let (input, exp) = primary(b"42 ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(Literal(42), exp);
-
-    let (input, exp) = primary(b"func(123) ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(
-        FunctionCall {
-            name: "func".to_string(),
-            args: vec![Literal(123)],
-        },
-        exp
-    );
-
-    let (input, exp) = primary(b"func[abc=123] ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(
-        LabelledCall {
-            name: "func".to_string(),
-            args: vec![LabelledParameter {
-                name: "abc".to_string(),
-                expression: Box::new(Literal(123)),
-            },],
-        },
-        exp
-    );
-
-    let (input, exp) = primary(b"abc ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(Identifier("abc".to_string()), exp);
 }
 
 fn function_call(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -719,19 +447,6 @@ fn function_call(input: &[u8]) -> IResult<&[u8], Expression> {
     })
 }
 
-#[test]
-fn test_function_call() {
-    let (input, exp) = function_call(b"func(123) ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(
-        FunctionCall {
-            name: "func".to_string(),
-            args: vec![Literal(123)],
-        },
-        exp
-    );
-}
-
 fn labelled_patameter(input: &[u8]) -> IResult<&[u8], LabelledParameter> {
     tuple((identifier, space0, tag("="), space0, expression))(input).map(
         |(input, (id, _, _, _, exp))| {
@@ -748,19 +463,6 @@ fn labelled_patameter(input: &[u8]) -> IResult<&[u8], LabelledParameter> {
             }
         },
     )
-}
-
-#[test]
-fn test_labelled_patameter() {
-    let (input, param) = labelled_patameter(b"a=123 ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(
-        LabelledParameter {
-            name: "a".to_string(),
-            expression: Box::new(Literal(123)),
-        },
-        param
-    );
 }
 
 fn labelled_call(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -796,24 +498,327 @@ fn labelled_call(input: &[u8]) -> IResult<&[u8], Expression> {
     })
 }
 
-#[test]
-fn test_labelled_call() {
-    let (input, exp) = labelled_call(b"func[abc=123,def=456] ").unwrap();
-    assert_eq!(b" ", input);
-    assert_eq!(
-        LabelledCall {
-            name: "func".to_string(),
-            args: vec![
-                LabelledParameter {
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_integer() {
+        let (input, exp) = integer(b"12345 ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(Literal(12345), exp);
+
+        integer(b"").unwrap_err();
+        integer(b"abc").unwrap_err();
+    }
+
+    #[test]
+    fn test_identifier() {
+        let (input, exp) = identifier(b"abc ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(Identifier("abc".to_string()), exp);
+
+        identifier(b"").unwrap_err();
+        identifier(b"12345").unwrap_err();
+    }
+
+    #[test]
+    fn test_function_definition() {
+        let (input, exp) = function_definition(b"define func ( ) {1;} ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(
+            TopLevel::FunctionDefinition {
+                name: "func".to_string(),
+                args: vec![],
+                body: Block {
+                    expressions: vec![Literal(1),],
+                },
+            },
+            exp
+        );
+
+        let (input, exp) = function_definition(b"define func ( abc ) {1;} ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(
+            TopLevel::FunctionDefinition {
+                name: "func".to_string(),
+                args: vec!["abc".to_string()],
+                body: Block {
+                    expressions: vec![Literal(1),],
+                },
+            },
+            exp
+        );
+    }
+
+    #[test]
+    fn test_global_variable_definition() {
+        let (input, exp) = global_variable_definition(b"global abc=123;").unwrap();
+        assert_eq!(b";", input);
+        assert_eq!(
+            TopLevel::GlobalVariableDefinition {
+                name: "abc".to_string(),
+                expression: Box::new(Literal(123)),
+            },
+            exp
+        );
+    }
+
+    #[test]
+    fn test_line() {
+        let (input, exp) = line(b"abc=12345; ").unwrap();
+        assert_eq!(b"", input);
+        assert_eq!(
+            Assignment {
+                name: "abc".to_string(),
+                expression: Box::new(Literal(12345))
+            },
+            exp
+        );
+
+        let (input, exp) = line(b"12345; ").unwrap();
+        assert_eq!(b"", input);
+        assert_eq!(Literal(12345), exp);
+    }
+
+    #[test]
+    fn test_if_expression() {
+        let (input, exp) = if_expression(b"if(1)2;").unwrap();
+        assert_eq!(b"", input);
+        assert_eq!(
+            If {
+                condition: Box::new(Literal(1)),
+                then_clause: Box::new(Literal(2)),
+                else_clause: None,
+            },
+            exp
+        );
+
+        let (input, exp) = if_expression(b"if(1)2;else3;").unwrap();
+        assert_eq!(b"", input);
+        assert_eq!(
+            If {
+                condition: Box::new(Literal(1)),
+                then_clause: Box::new(Literal(2)),
+                else_clause: Some(Box::new(Literal(3))),
+            },
+            exp
+        );
+    }
+
+    #[test]
+    fn test_while_expression() {
+        let (input, exp) = while_expression(b"while(1!=2){3;} ").unwrap();
+        assert_eq!(b"", input);
+        assert_eq!(
+            While {
+                condition: Box::new(BinaryExpression {
+                    operator: Operator::NotEqual,
+                    lhs: Box::new(Literal(1)),
+                    rhs: Box::new(Literal(2)),
+                }),
+                body: Box::new(Block {
+                    expressions: vec![Literal(3)],
+                },),
+            },
+            exp
+        );
+    }
+
+    #[test]
+    fn test_for_in_expression() {
+        let (input, exp) = for_in_expression(b"for( i in 1 to 10)3; ").unwrap();
+        assert_eq!(b"", input);
+        assert_eq!(
+            Block {
+                expressions: vec![
+                    Assignment {
+                        name: "i".to_string(),
+                        expression: Box::new(Literal(1)),
+                    },
+                    While {
+                        condition: Box::new(BinaryExpression {
+                            operator: Operator::LessThan,
+                            lhs: Box::new(Identifier("i".to_string())),
+                            rhs: Box::new(Literal(10)),
+                        }),
+                        body: Box::new(Block {
+                            expressions: vec![
+                                Literal(3),
+                                Assignment {
+                                    name: "i".to_string(),
+                                    expression: Box::new(BinaryExpression {
+                                        operator: Operator::Add,
+                                        lhs: Box::new(Identifier("i".to_string())),
+                                        rhs: Box::new(Literal(1)),
+                                    }),
+                                },
+                            ],
+                        })
+                    }
+                ],
+            },
+            exp
+        );
+    }
+
+    #[test]
+    fn test_block_expression() {
+        let (input, exp) = block_expression(b"{1;} ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(
+            Block {
+                expressions: vec![Literal(1),],
+            },
+            exp
+        );
+    }
+
+    #[test]
+    fn test_assignment() {
+        let (input, exp) = assignment(b"abc=12345; ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(
+            Assignment {
+                name: "abc".to_string(),
+                expression: Box::new(Literal(12345))
+            },
+            exp
+        );
+    }
+
+    #[test]
+    fn test_expression_line() {
+        let (input, exp) = expression_line(b"12345; ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(Literal(12345), exp);
+    }
+
+    #[test]
+    fn test_comparative() {
+        let (input, exp) = comparative(b"1<2;").unwrap();
+        assert_eq!(b";", input);
+        assert_eq!(
+            BinaryExpression {
+                operator: Operator::LessThan,
+                lhs: Box::new(Literal(1)),
+                rhs: Box::new(Literal(2)),
+            },
+            exp
+        );
+    }
+
+    #[test]
+    fn test_additive() {
+        let (input, exp) = additive(b"1+2;").unwrap();
+        assert_eq!(b";", input);
+        assert_eq!(
+            BinaryExpression {
+                operator: Operator::Add,
+                lhs: Box::new(Literal(1)),
+                rhs: Box::new(Literal(2)),
+            },
+            exp
+        );
+    }
+
+    #[test]
+    fn test_multitive() {
+        let (input, exp) = multitive(b"1 * 2;").unwrap();
+        assert_eq!(b";", input);
+        assert_eq!(
+            BinaryExpression {
+                operator: Operator::Multiply,
+                lhs: Box::new(Literal(1)),
+                rhs: Box::new(Literal(2)),
+            },
+            exp
+        );
+    }
+
+    #[test]
+    fn test_primary() {
+        let (input, exp) = primary(b"( 42 ) ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(Literal(42), exp);
+
+        let (input, exp) = primary(b"42 ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(Literal(42), exp);
+
+        let (input, exp) = primary(b"func(123) ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(
+            FunctionCall {
+                name: "func".to_string(),
+                args: vec![Literal(123)],
+            },
+            exp
+        );
+
+        let (input, exp) = primary(b"func[abc=123] ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(
+            LabelledCall {
+                name: "func".to_string(),
+                args: vec![LabelledParameter {
                     name: "abc".to_string(),
                     expression: Box::new(Literal(123)),
-                },
-                LabelledParameter {
-                    name: "def".to_string(),
-                    expression: Box::new(Literal(456)),
-                },
-            ],
-        },
-        exp
-    );
+                },],
+            },
+            exp
+        );
+
+        let (input, exp) = primary(b"abc ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(Identifier("abc".to_string()), exp);
+    }
+
+    #[test]
+    fn test_function_call() {
+        let (input, exp) = function_call(b"func(123) ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(
+            FunctionCall {
+                name: "func".to_string(),
+                args: vec![Literal(123)],
+            },
+            exp
+        );
+    }
+
+    #[test]
+    fn test_labelled_patameter() {
+        let (input, param) = labelled_patameter(b"a=123 ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(
+            LabelledParameter {
+                name: "a".to_string(),
+                expression: Box::new(Literal(123)),
+            },
+            param
+        );
+    }
+
+    #[test]
+    fn test_labelled_call() {
+        let (input, exp) = labelled_call(b"func[abc=123,def=456] ").unwrap();
+        assert_eq!(b" ", input);
+        assert_eq!(
+            LabelledCall {
+                name: "func".to_string(),
+                args: vec![
+                    LabelledParameter {
+                        name: "abc".to_string(),
+                        expression: Box::new(Literal(123)),
+                    },
+                    LabelledParameter {
+                        name: "def".to_string(),
+                        expression: Box::new(Literal(456)),
+                    },
+                ],
+            },
+            exp
+        );
+    }
 }

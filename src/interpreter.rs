@@ -328,306 +328,310 @@ impl<'a> Interpreter<'a> {
     }
 }
 
-#[test]
-fn interpret_literal() {
-    let mut interpreter = Interpreter::new();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let actual = interpreter.interpret(&Literal(42));
+    #[test]
+    fn interpret_literal() {
+        let mut interpreter = Interpreter::new();
 
-    assert_eq!(42, actual);
-}
+        let actual = interpreter.interpret(&Literal(42));
 
-#[test]
+        assert_eq!(42, actual);
+    }
 
-fn interpret_binary_expression() {
-    let mut interpreter = Interpreter::new();
+    #[test]
+    fn interpret_binary_expression() {
+        let mut interpreter = Interpreter::new();
 
-    let actual_add = interpreter.interpret(&BinaryExpression {
-        operator: Operator::Add,
-        lhs: Box::new(Literal(1)),
-        rhs: Box::new(Literal(2)),
-    });
-    assert_eq!(1 + 2, actual_add);
+        let actual_add = interpreter.interpret(&BinaryExpression {
+            operator: Operator::Add,
+            lhs: Box::new(Literal(1)),
+            rhs: Box::new(Literal(2)),
+        });
+        assert_eq!(1 + 2, actual_add);
 
-    let actual_subtract = interpreter.interpret(&BinaryExpression {
-        operator: Operator::Subtract,
-        lhs: Box::new(Literal(1)),
-        rhs: Box::new(Literal(2)),
-    });
+        let actual_subtract = interpreter.interpret(&BinaryExpression {
+            operator: Operator::Subtract,
+            lhs: Box::new(Literal(1)),
+            rhs: Box::new(Literal(2)),
+        });
 
-    assert_eq!(1 - 2, actual_subtract);
+        assert_eq!(1 - 2, actual_subtract);
 
-    let actual_multiply = interpreter.interpret(&BinaryExpression {
-        operator: Operator::Multiply,
-        lhs: Box::new(Literal(1)),
-        rhs: Box::new(Literal(2)),
-    });
-    assert_eq!(1 * 2, actual_multiply);
+        let actual_multiply = interpreter.interpret(&BinaryExpression {
+            operator: Operator::Multiply,
+            lhs: Box::new(Literal(1)),
+            rhs: Box::new(Literal(2)),
+        });
+        assert_eq!(1 * 2, actual_multiply);
 
-    let actual_divide = interpreter.interpret(&BinaryExpression {
-        operator: Operator::Divide,
-        lhs: Box::new(Literal(1)),
-        rhs: Box::new(Literal(2)),
-    });
-    assert_eq!(1 / 2, actual_divide);
+        let actual_divide = interpreter.interpret(&BinaryExpression {
+            operator: Operator::Divide,
+            lhs: Box::new(Literal(1)),
+            rhs: Box::new(Literal(2)),
+        });
+        assert_eq!(1 / 2, actual_divide);
 
-    let actual_less_than = interpreter.interpret(&BinaryExpression {
-        operator: Operator::LessThan,
-        lhs: Box::new(Literal(1)),
-        rhs: Box::new(Literal(2)),
-    });
-    assert_eq!(1, actual_less_than);
+        let actual_less_than = interpreter.interpret(&BinaryExpression {
+            operator: Operator::LessThan,
+            lhs: Box::new(Literal(1)),
+            rhs: Box::new(Literal(2)),
+        });
+        assert_eq!(1, actual_less_than);
 
-    let actual_less_or_equal = interpreter.interpret(&BinaryExpression {
-        operator: Operator::LessOrEqual,
-        lhs: Box::new(Literal(1)),
-        rhs: Box::new(Literal(2)),
-    });
-    assert_eq!(1, actual_less_or_equal);
+        let actual_less_or_equal = interpreter.interpret(&BinaryExpression {
+            operator: Operator::LessOrEqual,
+            lhs: Box::new(Literal(1)),
+            rhs: Box::new(Literal(2)),
+        });
+        assert_eq!(1, actual_less_or_equal);
 
-    let actual_greater_than = interpreter.interpret(&BinaryExpression {
-        operator: Operator::GreaterThan,
-        lhs: Box::new(Literal(1)),
-        rhs: Box::new(Literal(2)),
-    });
-    assert_eq!(0, actual_greater_than);
+        let actual_greater_than = interpreter.interpret(&BinaryExpression {
+            operator: Operator::GreaterThan,
+            lhs: Box::new(Literal(1)),
+            rhs: Box::new(Literal(2)),
+        });
+        assert_eq!(0, actual_greater_than);
 
-    let actual_greater_or_equal = interpreter.interpret(&BinaryExpression {
-        operator: Operator::GreaterOrEqual,
-        lhs: Box::new(Literal(1)),
-        rhs: Box::new(Literal(2)),
-    });
-    assert_eq!(0, actual_greater_or_equal);
+        let actual_greater_or_equal = interpreter.interpret(&BinaryExpression {
+            operator: Operator::GreaterOrEqual,
+            lhs: Box::new(Literal(1)),
+            rhs: Box::new(Literal(2)),
+        });
+        assert_eq!(0, actual_greater_or_equal);
 
-    let actual_equal_equal = interpreter.interpret(&BinaryExpression {
-        operator: Operator::EqualEqual,
-        lhs: Box::new(Literal(1)),
-        rhs: Box::new(Literal(2)),
-    });
-    assert_eq!(0, actual_equal_equal);
+        let actual_equal_equal = interpreter.interpret(&BinaryExpression {
+            operator: Operator::EqualEqual,
+            lhs: Box::new(Literal(1)),
+            rhs: Box::new(Literal(2)),
+        });
+        assert_eq!(0, actual_equal_equal);
 
-    let actual_not_equal = interpreter.interpret(&BinaryExpression {
-        operator: Operator::NotEqual,
-        lhs: Box::new(Literal(1)),
-        rhs: Box::new(Literal(2)),
-    });
-    assert_eq!(1, actual_not_equal);
-}
+        let actual_not_equal = interpreter.interpret(&BinaryExpression {
+            operator: Operator::NotEqual,
+            lhs: Box::new(Literal(1)),
+            rhs: Box::new(Literal(2)),
+        });
+        assert_eq!(1, actual_not_equal);
+    }
 
-#[test]
-fn interpret_identifier() {
-    let mut interpreter = Interpreter::new();
-    interpreter.set_variable("hoge".to_string(), 42);
+    #[test]
+    fn interpret_identifier() {
+        let mut interpreter = Interpreter::new();
+        interpreter.set_variable("hoge".to_string(), 42);
 
-    let actual = interpreter.interpret(&Identifier("hoge".to_string()));
+        let actual = interpreter.interpret(&Identifier("hoge".to_string()));
 
-    assert_eq!(42, actual);
-}
+        assert_eq!(42, actual);
+    }
 
-#[test]
-fn interpret_assignment() {
-    let mut interpreter = Interpreter::new();
+    #[test]
+    fn interpret_assignment() {
+        let mut interpreter = Interpreter::new();
 
-    let actual = interpreter.interpret(&Assignment {
-        name: "hoge".to_string(),
-        expression: Box::new(Literal(42)),
-    });
+        let actual = interpreter.interpret(&Assignment {
+            name: "hoge".to_string(),
+            expression: Box::new(Literal(42)),
+        });
 
-    assert_eq!(42, actual);
-    assert_eq!(Some(42i32), interpreter.get_variable("hoge".to_string()));
-}
+        assert_eq!(42, actual);
+        assert_eq!(Some(42i32), interpreter.get_variable("hoge".to_string()));
+    }
 
-#[test]
-fn interpret_block() {
-    let mut interpreter = Interpreter::new();
+    #[test]
+    fn interpret_block() {
+        let mut interpreter = Interpreter::new();
 
-    let actual = interpreter.interpret(&Block {
-        expressions: vec![
-            Assignment {
+        let actual = interpreter.interpret(&Block {
+            expressions: vec![
+                Assignment {
+                    name: "a".to_string(),
+                    expression: Box::new(Literal(1)),
+                },
+                Assignment {
+                    name: "b".to_string(),
+                    expression: Box::new(Literal(2)),
+                },
+                Assignment {
+                    name: "c".to_string(),
+                    expression: Box::new(Literal(3)),
+                },
+                Literal(4),
+            ],
+        });
+
+        assert_eq!(4, actual);
+        assert_eq!(Some(1i32), interpreter.get_variable("a".to_string()));
+        assert_eq!(Some(2i32), interpreter.get_variable("b".to_string()));
+        assert_eq!(Some(3i32), interpreter.get_variable("c".to_string()));
+    }
+
+    #[test]
+    fn interpret_while() {
+        let mut interpreter = Interpreter::new();
+        interpreter.set_variable("a".to_string(), 0i32);
+
+        let actual = interpreter.interpret(&While {
+            condition: Box::new(BinaryExpression {
+                operator: Operator::LessThan,
+                lhs: Box::new(Identifier("a".to_string())),
+                rhs: Box::new(Literal(10)),
+            }),
+            body: Box::new(Assignment {
                 name: "a".to_string(),
+                expression: Box::new(BinaryExpression {
+                    operator: Operator::Add,
+                    lhs: Box::new(Identifier("a".to_string())),
+                    rhs: Box::new(Literal(1)),
+                }),
+            }),
+        });
+
+        assert_eq!(1, actual);
+        assert_eq!(Some(10i32), interpreter.get_variable("a".to_string()));
+    }
+
+    #[test]
+    fn interpret_if_then() {
+        let mut interpreter = Interpreter::new();
+        interpreter.set_variable("a".to_string(), 0i32);
+
+        let actual = interpreter.interpret(&If {
+            condition: Box::new(BinaryExpression {
+                operator: Operator::LessThan,
+                lhs: Box::new(Identifier("a".to_string())),
+                rhs: Box::new(Literal(10)),
+            }),
+            then_clause: Box::new(Assignment {
+                name: "b".to_string(),
                 expression: Box::new(Literal(1)),
-            },
-            Assignment {
+            }),
+            else_clause: Some(Box::new(Assignment {
                 name: "b".to_string(),
                 expression: Box::new(Literal(2)),
+            })),
+        });
+
+        assert_eq!(1, actual);
+        assert_eq!(Some(1i32), interpreter.get_variable("b".to_string()));
+    }
+
+    #[test]
+    fn interpret_if_else() {
+        let mut interpreter = Interpreter::new();
+        interpreter.set_variable("a".to_string(), 0i32);
+
+        let actual = interpreter.interpret(&If {
+            condition: Box::new(BinaryExpression {
+                operator: Operator::GreaterThan,
+                lhs: Box::new(Identifier("a".to_string())),
+                rhs: Box::new(Literal(10)),
+            }),
+            then_clause: Box::new(Assignment {
+                name: "b".to_string(),
+                expression: Box::new(Literal(1)),
+            }),
+            else_clause: Some(Box::new(Assignment {
+                name: "b".to_string(),
+                expression: Box::new(Literal(2)),
+            })),
+        });
+
+        assert_eq!(2, actual);
+        assert_eq!(Some(2i32), interpreter.get_variable("b".to_string()));
+    }
+
+    #[test]
+    fn interpret_function_call() {
+        let mut interpreter = Interpreter::new();
+
+        let main_func = TopLevel::FunctionDefinition {
+            name: "main".to_string(),
+            args: vec![],
+            body: FunctionCall {
+                name: "hoge".to_string(),
+                args: vec![Literal(1), Literal(2)],
             },
-            Assignment {
-                name: "c".to_string(),
-                expression: Box::new(Literal(3)),
-            },
-            Literal(4),
-        ],
-    });
-
-    assert_eq!(4, actual);
-    assert_eq!(Some(1i32), interpreter.get_variable("a".to_string()));
-    assert_eq!(Some(2i32), interpreter.get_variable("b".to_string()));
-    assert_eq!(Some(3i32), interpreter.get_variable("c".to_string()));
-}
-
-#[test]
-fn interpret_while() {
-    let mut interpreter = Interpreter::new();
-    interpreter.set_variable("a".to_string(), 0i32);
-
-    let actual = interpreter.interpret(&While {
-        condition: Box::new(BinaryExpression {
-            operator: Operator::LessThan,
-            lhs: Box::new(Identifier("a".to_string())),
-            rhs: Box::new(Literal(10)),
-        }),
-        body: Box::new(Assignment {
-            name: "a".to_string(),
-            expression: Box::new(BinaryExpression {
+        };
+        let hoge_func = TopLevel::FunctionDefinition {
+            name: "hoge".to_string(),
+            args: vec!["a".to_string(), "b".to_string()],
+            body: BinaryExpression {
                 operator: Operator::Add,
                 lhs: Box::new(Identifier("a".to_string())),
-                rhs: Box::new(Literal(1)),
-            }),
-        }),
-    });
+                rhs: Box::new(Identifier("b".to_string())),
+            },
+        };
 
-    assert_eq!(1, actual);
-    assert_eq!(Some(10i32), interpreter.get_variable("a".to_string()));
-}
+        let top_level = vec![&main_func, &hoge_func];
 
-#[test]
-fn interpret_if_then() {
-    let mut interpreter = Interpreter::new();
-    interpreter.set_variable("a".to_string(), 0i32);
+        let actual = interpreter.call_main(top_level);
+        assert_eq!(3, actual);
+    }
 
-    let actual = interpreter.interpret(&If {
-        condition: Box::new(BinaryExpression {
-            operator: Operator::LessThan,
-            lhs: Box::new(Identifier("a".to_string())),
-            rhs: Box::new(Literal(10)),
-        }),
-        then_clause: Box::new(Assignment {
-            name: "b".to_string(),
-            expression: Box::new(Literal(1)),
-        }),
-        else_clause: Some(Box::new(Assignment {
-            name: "b".to_string(),
-            expression: Box::new(Literal(2)),
-        })),
-    });
+    #[test]
+    fn test_global_variable_definition() {
+        let mut interpreter = Interpreter::new();
 
-    assert_eq!(1, actual);
-    assert_eq!(Some(1i32), interpreter.get_variable("b".to_string()));
-}
-
-#[test]
-fn interpret_if_else() {
-    let mut interpreter = Interpreter::new();
-    interpreter.set_variable("a".to_string(), 0i32);
-
-    let actual = interpreter.interpret(&If {
-        condition: Box::new(BinaryExpression {
-            operator: Operator::GreaterThan,
-            lhs: Box::new(Identifier("a".to_string())),
-            rhs: Box::new(Literal(10)),
-        }),
-        then_clause: Box::new(Assignment {
-            name: "b".to_string(),
-            expression: Box::new(Literal(1)),
-        }),
-        else_clause: Some(Box::new(Assignment {
-            name: "b".to_string(),
-            expression: Box::new(Literal(2)),
-        })),
-    });
-
-    assert_eq!(2, actual);
-    assert_eq!(Some(2i32), interpreter.get_variable("b".to_string()));
-}
-
-#[test]
-fn interpret_function_call() {
-    let mut interpreter = Interpreter::new();
-
-    let main_func = TopLevel::FunctionDefinition {
-        name: "main".to_string(),
-        args: vec![],
-        body: FunctionCall {
+        let var_def = TopLevel::GlobalVariableDefinition {
             name: "hoge".to_string(),
-            args: vec![Literal(1), Literal(2)],
-        },
-    };
-    let hoge_func = TopLevel::FunctionDefinition {
-        name: "hoge".to_string(),
-        args: vec!["a".to_string(), "b".to_string()],
-        body: BinaryExpression {
-            operator: Operator::Add,
-            lhs: Box::new(Identifier("a".to_string())),
-            rhs: Box::new(Identifier("b".to_string())),
-        },
-    };
+            expression: Box::new(Literal(42)),
+        };
+        let main_func = TopLevel::FunctionDefinition {
+            name: "main".to_string(),
+            args: vec![],
+            body: Identifier("hoge".to_string()),
+        };
 
-    let top_level = vec![&main_func, &hoge_func];
+        let top_level = vec![&var_def, &main_func];
 
-    let actual = interpreter.call_main(top_level);
-    assert_eq!(3, actual);
-}
+        let actual = interpreter.call_main(top_level);
+        assert_eq!(42, actual);
+    }
 
-#[test]
-fn test_global_variable_definition() {
-    let mut interpreter = Interpreter::new();
-
-    let var_def = TopLevel::GlobalVariableDefinition {
-        name: "hoge".to_string(),
-        expression: Box::new(Literal(42)),
-    };
-    let main_func = TopLevel::FunctionDefinition {
-        name: "main".to_string(),
-        args: vec![],
-        body: Identifier("hoge".to_string()),
-    };
-
-    let top_level = vec![&var_def, &main_func];
-
-    let actual = interpreter.call_main(top_level);
-    assert_eq!(42, actual);
-}
-
-#[test]
-fn test_factorial() {
-    let mut interpreter = Interpreter::new();
-    let main_func = TopLevel::FunctionDefinition {
-        name: "main".to_string(),
-        args: vec![],
-        body: Block {
-            expressions: vec![FunctionCall {
-                name: "fact".to_string(),
-                args: vec![Literal(5)],
-            }],
-        },
-    };
-    let fact_func = TopLevel::FunctionDefinition {
-        name: "fact".to_string(),
-        args: vec!["n".to_string()],
-        body: Block {
-            expressions: vec![If {
-                condition: Box::new(BinaryExpression {
-                    operator: Operator::LessThan,
-                    lhs: Box::new(Identifier("n".to_string())),
-                    rhs: Box::new(Literal(2)),
-                }),
-                then_clause: Box::new(Literal(1)),
-                else_clause: Some(Box::new(BinaryExpression {
-                    operator: Operator::Multiply,
-                    lhs: Box::new(Identifier("n".to_string())),
-                    rhs: Box::new(FunctionCall {
-                        name: "fact".to_string(),
-                        args: vec![BinaryExpression {
-                            operator: Operator::Subtract,
-                            lhs: Box::new(Identifier("n".to_string())),
-                            rhs: Box::new(Literal(1)),
-                        }],
+    #[test]
+    fn test_factorial() {
+        let mut interpreter = Interpreter::new();
+        let main_func = TopLevel::FunctionDefinition {
+            name: "main".to_string(),
+            args: vec![],
+            body: Block {
+                expressions: vec![FunctionCall {
+                    name: "fact".to_string(),
+                    args: vec![Literal(5)],
+                }],
+            },
+        };
+        let fact_func = TopLevel::FunctionDefinition {
+            name: "fact".to_string(),
+            args: vec!["n".to_string()],
+            body: Block {
+                expressions: vec![If {
+                    condition: Box::new(BinaryExpression {
+                        operator: Operator::LessThan,
+                        lhs: Box::new(Identifier("n".to_string())),
+                        rhs: Box::new(Literal(2)),
                     }),
-                })),
-            }],
-        },
-    };
-    let top_level = vec![&main_func, &fact_func];
-    let actual = interpreter.call_main(top_level);
-    assert_eq!(120, actual);
+                    then_clause: Box::new(Literal(1)),
+                    else_clause: Some(Box::new(BinaryExpression {
+                        operator: Operator::Multiply,
+                        lhs: Box::new(Identifier("n".to_string())),
+                        rhs: Box::new(FunctionCall {
+                            name: "fact".to_string(),
+                            args: vec![BinaryExpression {
+                                operator: Operator::Subtract,
+                                lhs: Box::new(Identifier("n".to_string())),
+                                rhs: Box::new(Literal(1)),
+                            }],
+                        }),
+                    })),
+                }],
+            },
+        };
+        let top_level = vec![&main_func, &fact_func];
+        let actual = interpreter.call_main(top_level);
+        assert_eq!(120, actual);
+    }
 }
