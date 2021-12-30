@@ -12,14 +12,6 @@ use std::str;
 use crate::ast::Expression::*;
 use crate::ast::*;
 
-fn space0(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    multispace0(input)
-}
-
-fn space1(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    multispace1(input)
-}
-
 fn integer(input: &[u8]) -> IResult<&[u8], Expression> {
     digit1(input).map(|(input, digit)| {
         let value = str::from_utf8(digit).unwrap().parse::<i32>().unwrap();
@@ -43,7 +35,7 @@ pub fn parse(input: String) -> Option<Vec<TopLevel>> {
 }
 
 fn program(input: &[u8]) -> IResult<&[u8], Vec<TopLevel>> {
-    many0(tuple((top_level_definition, space0)))(input).map(|(input, top_level_vec)| {
+    many0(tuple((top_level_definition, multispace0)))(input).map(|(input, top_level_vec)| {
         let mut ret = Vec::new();
         for top in top_level_vec {
             ret.push(top.0);
@@ -59,18 +51,18 @@ fn top_level_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
 fn function_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
     tuple((
         tag("define"),
-        space1,
+        multispace1,
         identifier,
-        space0,
+        multispace0,
         tag("("),
-        space0,
+        multispace0,
         opt(tuple((
             identifier,
-            many0(tuple((space0, tag(","), space0, identifier))),
-            space0,
+            many0(tuple((multispace0, tag(","), multispace0, identifier))),
+            multispace0,
         ))),
         tag(")"),
-        space0,
+        multispace0,
         block_expression,
     ))(input)
     .map(|(input, (_, _, id, _, _, _, arg_opt, _, _, block))| {
@@ -113,11 +105,11 @@ fn function_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
 fn global_variable_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
     tuple((
         tag("global"),
-        space1,
+        multispace1,
         identifier,
-        space0,
+        multispace0,
         tag("="),
-        space0,
+        multispace0,
         expression,
     ))(input)
     .map(|(input, (_, _, id, _, _, _, exp))| {
@@ -145,7 +137,7 @@ fn line(input: &[u8]) -> IResult<&[u8], Expression> {
             expression_line,
             block_expression,
         )),
-        space0,
+        multispace0,
     ))(input)
     .map(|(input, (exp, _))| (input, exp))
 }
@@ -153,17 +145,17 @@ fn line(input: &[u8]) -> IResult<&[u8], Expression> {
 fn if_expression(input: &[u8]) -> IResult<&[u8], Expression> {
     tuple((
         tag("if"),
-        space0,
+        multispace0,
         tag("("),
-        space0,
+        multispace0,
         expression,
-        space0,
+        multispace0,
         tag(")"),
-        space0,
+        multispace0,
         line,
     ))(input)
     .map(|(input, (_, _, _, _, exp, _, _, _, then))| {
-        match tuple((space0, tag("else"), space0, line))(input) {
+        match tuple((multispace0, tag("else"), multispace0, line))(input) {
             Ok((input, (_, _, _, el))) => (
                 input,
                 If {
@@ -187,13 +179,13 @@ fn if_expression(input: &[u8]) -> IResult<&[u8], Expression> {
 fn while_expression(input: &[u8]) -> IResult<&[u8], Expression> {
     tuple((
         tag("while"),
-        space0,
+        multispace0,
         tag("("),
-        space0,
+        multispace0,
         expression,
-        space0,
+        multispace0,
         tag(")"),
-        space0,
+        multispace0,
         line,
     ))(input)
     .map(|(input, (_, _, _, _, exp, _, _, _, line))| {
@@ -210,21 +202,21 @@ fn while_expression(input: &[u8]) -> IResult<&[u8], Expression> {
 fn for_in_expression(input: &[u8]) -> IResult<&[u8], Expression> {
     tuple((
         tag("for"),
-        space0,
+        multispace0,
         tag("("),
-        space0,
+        multispace0,
         identifier,
-        space1,
+        multispace1,
         tag("in"),
-        space1,
+        multispace1,
         expression,
-        space1,
+        multispace1,
         tag("to"),
-        space1,
+        multispace1,
         expression,
-        space0,
+        multispace0,
         tag(")"),
-        space0,
+        multispace0,
         line,
     ))(input)
     .map(
@@ -269,18 +261,18 @@ fn for_in_expression(input: &[u8]) -> IResult<&[u8], Expression> {
 }
 
 fn block_expression(input: &[u8]) -> IResult<&[u8], Expression> {
-    tuple((tag("{"), space0, many0(line), space0, tag("}")))(input)
+    tuple((tag("{"), multispace0, many0(line), multispace0, tag("}")))(input)
         .map(|(input, (_, _, lines, _, _))| (input, Block { expressions: lines }))
 }
 
 fn assignment(input: &[u8]) -> IResult<&[u8], Expression> {
     tuple((
         identifier,
-        space0,
+        multispace0,
         tag("="),
-        space0,
+        multispace0,
         expression,
-        space0,
+        multispace0,
         tag(";"),
     ))(input)
     .map(|(input, (id, _, _, _, exp, _, _))| {
@@ -299,7 +291,7 @@ fn assignment(input: &[u8]) -> IResult<&[u8], Expression> {
 }
 
 fn expression_line(input: &[u8]) -> IResult<&[u8], Expression> {
-    tuple((expression, space0, tag(";")))(input).map(|(input, (exp, _, _))| (input, exp))
+    tuple((expression, multispace0, tag(";")))(input).map(|(input, (exp, _, _))| (input, exp))
 }
 
 fn expression(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -311,7 +303,7 @@ fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
         Ok((input, exp)) => {
             let mut cur = exp;
             many0(tuple((
-                space0,
+                multispace0,
                 alt((
                     tag("<"),
                     tag(">"),
@@ -320,7 +312,7 @@ fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
                     tag("=="),
                     tag("!="),
                 )),
-                space0,
+                multispace0,
                 additive,
             )))(input)
             .map(|(input, v)| {
@@ -352,9 +344,9 @@ fn additive(input: &[u8]) -> IResult<&[u8], Expression> {
         Ok((input, exp)) => {
             let mut cur = exp;
             many0(tuple((
-                space0,
+                multispace0,
                 alt((tag("+"), tag("-"))),
-                space0,
+                multispace0,
                 multitive,
             )))(input)
             .map(|(input, v)| {
@@ -382,31 +374,35 @@ fn multitive(input: &[u8]) -> IResult<&[u8], Expression> {
     match primary(input) {
         Ok((input, exp)) => {
             let mut cur = exp;
-            many0(tuple((space0, alt((tag("*"), tag("/"))), space0, primary)))(input).map(
-                |(input, v)| {
-                    for elem in v {
-                        let (_, op, _, ex) = elem;
-                        cur = BinaryExpression {
-                            operator: match op {
-                                b"*" => Operator::Multiply,
-                                b"/" => Operator::Divide,
-                                _ => panic!(),
-                            },
-                            lhs: Box::new(cur),
-                            rhs: Box::new(ex),
-                        };
-                    }
+            many0(tuple((
+                multispace0,
+                alt((tag("*"), tag("/"))),
+                multispace0,
+                primary,
+            )))(input)
+            .map(|(input, v)| {
+                for elem in v {
+                    let (_, op, _, ex) = elem;
+                    cur = BinaryExpression {
+                        operator: match op {
+                            b"*" => Operator::Multiply,
+                            b"/" => Operator::Divide,
+                            _ => panic!(),
+                        },
+                        lhs: Box::new(cur),
+                        rhs: Box::new(ex),
+                    };
+                }
 
-                    (input, cur)
-                },
-            )
+                (input, cur)
+            })
         }
         Err(e) => Err(e),
     }
 }
 
 fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
-    let ret = tuple((tag("("), space0, expression, space0, tag(")")))(input);
+    let ret = tuple((tag("("), multispace0, expression, multispace0, tag(")")))(input);
     if let Ok((input, (_, _, exp, _, _))) = ret {
         return Ok((input, exp));
     }
@@ -417,13 +413,13 @@ fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
 fn function_call(input: &[u8]) -> IResult<&[u8], Expression> {
     tuple((
         identifier,
-        space0,
+        multispace0,
         tag("("),
-        space0,
+        multispace0,
         opt(tuple((
             expression,
-            many0(tuple((space0, tag(","), space0, expression))),
-            space0,
+            many0(tuple((multispace0, tag(","), multispace0, expression))),
+            multispace0,
         ))),
         tag(")"),
     ))(input)
@@ -448,7 +444,7 @@ fn function_call(input: &[u8]) -> IResult<&[u8], Expression> {
 }
 
 fn labelled_patameter(input: &[u8]) -> IResult<&[u8], LabelledParameter> {
-    tuple((identifier, space0, tag("="), space0, expression))(input).map(
+    tuple((identifier, multispace0, tag("="), multispace0, expression))(input).map(
         |(input, (id, _, _, _, exp))| {
             if let Identifier(name) = id {
                 (
@@ -468,13 +464,18 @@ fn labelled_patameter(input: &[u8]) -> IResult<&[u8], LabelledParameter> {
 fn labelled_call(input: &[u8]) -> IResult<&[u8], Expression> {
     tuple((
         identifier,
-        space0,
+        multispace0,
         tag("["),
-        space0,
+        multispace0,
         opt(tuple((
             labelled_patameter,
-            many0(tuple((space0, tag(","), space0, labelled_patameter))),
-            space0,
+            many0(tuple((
+                multispace0,
+                tag(","),
+                multispace0,
+                labelled_patameter,
+            ))),
+            multispace0,
         ))),
         tag("]"),
     ))(input)
