@@ -21,13 +21,10 @@ fn space1(input: &[u8]) -> IResult<&[u8], &[u8]> {
 }
 
 fn integer(input: &[u8]) -> IResult<&[u8], Expression> {
-    match digit1(input) {
-        Ok((input, digit)) => {
-            let value = str::from_utf8(digit).unwrap().parse::<i32>().unwrap();
-            Ok((input, Literal(value)))
-        }
-        Err(e) => Err(e),
-    }
+    digit1(input).map(|(input, digit)| {
+        let value = str::from_utf8(digit).unwrap().parse::<i32>().unwrap();
+        (input, Literal(value))
+    })
 }
 
 #[test]
@@ -41,14 +38,10 @@ fn test_integer() {
 }
 
 fn identifier(input: &[u8]) -> IResult<&[u8], Expression> {
-    let ret = take_while1(is_alphabetic)(input);
-    match ret {
-        Ok((input, s)) => {
-            let value = str::from_utf8(s).unwrap();
-            Ok((input, Identifier(value.to_string())))
-        }
-        Err(e) => Err(e),
-    }
+    take_while1(is_alphabetic)(input).map(|(input, s)| {
+        let value = str::from_utf8(s).unwrap();
+        (input, Identifier(value.to_string()))
+    })
 }
 
 #[test]
@@ -70,16 +63,13 @@ pub fn parse(input: String) -> Option<Vec<TopLevel>> {
 }
 
 fn program(input: &[u8]) -> IResult<&[u8], Vec<TopLevel>> {
-    match many0(tuple((top_level_definition, space0)))(input) {
-        Ok((input, top_level_vec)) => {
-            let mut ret = Vec::new();
-            for top in top_level_vec {
-                ret.push(top.0);
-            }
-            Ok((input, ret))
+    many0(tuple((top_level_definition, space0)))(input).map(|(input, top_level_vec)| {
+        let mut ret = Vec::new();
+        for top in top_level_vec {
+            ret.push(top.0);
         }
-        Err(e) => Err(e),
-    }
+        (input, ret)
+    })
 }
 
 fn top_level_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
@@ -87,7 +77,7 @@ fn top_level_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
 }
 
 fn function_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
-    match tuple((
+    tuple((
         tag("define"),
         space1,
         identifier,
@@ -103,44 +93,41 @@ fn function_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
         space0,
         block_expression,
     ))(input)
-    {
-        Ok((input, (_, _, id, _, _, _, arg_opt, _, _, block))) => {
-            if let Identifier(s) = id {
-                let args = match arg_opt {
-                    Some(t) => {
-                        let mut args = vec![];
-                        if let Identifier(arg0) = t.0 {
-                            args.push(arg0);
+    .map(|(input, (_, _, id, _, _, _, arg_opt, _, _, block))| {
+        if let Identifier(s) = id {
+            let args = match arg_opt {
+                Some(t) => {
+                    let mut args = vec![];
+                    if let Identifier(arg0) = t.0 {
+                        args.push(arg0);
+                    } else {
+                        panic!();
+                    }
+
+                    for arg in t.1 {
+                        if let Identifier(argn) = arg.3 {
+                            args.push(argn);
                         } else {
                             panic!();
                         }
-
-                        for arg in t.1 {
-                            if let Identifier(argn) = arg.3 {
-                                args.push(argn);
-                            } else {
-                                panic!();
-                            }
-                        }
-                        args
                     }
-                    None => Vec::new(),
-                };
+                    args
+                }
+                None => Vec::new(),
+            };
 
-                Ok((
-                    input,
-                    TopLevel::FunctionDefinition {
-                        name: s,
-                        args,
-                        body: block,
-                    },
-                ))
-            } else {
-                panic!();
-            }
+            (
+                input,
+                TopLevel::FunctionDefinition {
+                    name: s,
+                    args,
+                    body: block,
+                },
+            )
+        } else {
+            panic!();
         }
-        Err(e) => Err(e),
-    }
+    })
 }
 
 #[test]
@@ -173,7 +160,7 @@ fn test_function_definition() {
 }
 
 fn global_variable_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
-    match tuple((
+    tuple((
         tag("global"),
         space1,
         identifier,
@@ -182,22 +169,19 @@ fn global_variable_definition(input: &[u8]) -> IResult<&[u8], TopLevel> {
         space0,
         expression,
     ))(input)
-    {
-        Ok((input, (_, _, id, _, _, _, exp))) => {
-            if let Identifier(s) = id {
-                Ok((
-                    input,
-                    TopLevel::GlobalVariableDefinition {
-                        name: s,
-                        expression: Box::new(exp),
-                    },
-                ))
-            } else {
-                panic!();
-            }
+    .map(|(input, (_, _, id, _, _, _, exp))| {
+        if let Identifier(s) = id {
+            (
+                input,
+                TopLevel::GlobalVariableDefinition {
+                    name: s,
+                    expression: Box::new(exp),
+                },
+            )
+        } else {
+            panic!();
         }
-        Err(e) => Err(e),
-    }
+    })
 }
 
 #[test]
@@ -214,7 +198,7 @@ fn test_global_variable_definition() {
 }
 
 fn line(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((
+    tuple((
         alt((
             while_expression,
             for_in_expression,
@@ -225,10 +209,7 @@ fn line(input: &[u8]) -> IResult<&[u8], Expression> {
         )),
         space0,
     ))(input)
-    {
-        Ok((input, (exp, _))) => Ok((input, exp)),
-        Err(e) => Err(e),
-    }
+    .map(|(input, (exp, _))| (input, exp))
 }
 
 #[test]
@@ -249,7 +230,7 @@ fn test_line() {
 }
 
 fn if_expression(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((
+    tuple((
         tag("if"),
         space0,
         tag("("),
@@ -260,29 +241,26 @@ fn if_expression(input: &[u8]) -> IResult<&[u8], Expression> {
         space0,
         line,
     ))(input)
-    {
-        Ok((input, (_, _, _, _, exp, _, _, _, then))) => {
-            match tuple((space0, tag("else"), space0, line))(input) {
-                Ok((input, (_, _, _, el))) => Ok((
-                    input,
-                    If {
-                        condition: Box::new(exp),
-                        then_clause: Box::new(then),
-                        else_clause: Some(Box::new(el)),
-                    },
-                )),
-                Err(_) => Ok((
-                    input,
-                    If {
-                        condition: Box::new(exp),
-                        then_clause: Box::new(then),
-                        else_clause: None,
-                    },
-                )),
-            }
+    .map(|(input, (_, _, _, _, exp, _, _, _, then))| {
+        match tuple((space0, tag("else"), space0, line))(input) {
+            Ok((input, (_, _, _, el))) => (
+                input,
+                If {
+                    condition: Box::new(exp),
+                    then_clause: Box::new(then),
+                    else_clause: Some(Box::new(el)),
+                },
+            ),
+            Err(_) => (
+                input,
+                If {
+                    condition: Box::new(exp),
+                    then_clause: Box::new(then),
+                    else_clause: None,
+                },
+            ),
         }
-        Err(e) => Err(e),
-    }
+    })
 }
 
 #[test]
@@ -311,7 +289,7 @@ fn test_if_expression() {
 }
 
 fn while_expression(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((
+    tuple((
         tag("while"),
         space0,
         tag("("),
@@ -322,16 +300,15 @@ fn while_expression(input: &[u8]) -> IResult<&[u8], Expression> {
         space0,
         line,
     ))(input)
-    {
-        Ok((input, (_, _, _, _, exp, _, _, _, line))) => Ok((
+    .map(|(input, (_, _, _, _, exp, _, _, _, line))| {
+        (
             input,
             While {
                 condition: Box::new(exp),
                 body: Box::new(line),
             },
-        )),
-        Err(e) => Err(e),
-    }
+        )
+    })
 }
 
 #[test]
@@ -354,7 +331,7 @@ fn test_while_expression() {
 }
 
 fn for_in_expression(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((
+    tuple((
         tag("for"),
         space0,
         tag("("),
@@ -373,10 +350,10 @@ fn for_in_expression(input: &[u8]) -> IResult<&[u8], Expression> {
         space0,
         line,
     ))(input)
-    {
-        Ok((input, (_, _, _, _, id, _, _, _, exp0, _, _, _, exp1, _, _, _, line))) => {
+    .map(
+        |(input, (_, _, _, _, id, _, _, _, exp0, _, _, _, exp1, _, _, _, line))| {
             if let Identifier(name) = id {
-                Ok((
+                (
                     input,
                     Block {
                         expressions: vec![
@@ -406,13 +383,12 @@ fn for_in_expression(input: &[u8]) -> IResult<&[u8], Expression> {
                             },
                         ],
                     },
-                ))
+                )
             } else {
                 panic!();
             }
-        }
-        Err(e) => Err(e),
-    }
+        },
+    )
 }
 
 #[test]
@@ -453,10 +429,8 @@ fn test_for_in_expression() {
 }
 
 fn block_expression(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((tag("{"), space0, many0(line), space0, tag("}")))(input) {
-        Ok((input, (_, _, lines, _, _))) => Ok((input, Block { expressions: lines })),
-        Err(e) => Err(e),
-    }
+    tuple((tag("{"), space0, many0(line), space0, tag("}")))(input)
+        .map(|(input, (_, _, lines, _, _))| (input, Block { expressions: lines }))
 }
 
 #[test]
@@ -472,7 +446,7 @@ fn test_block_expression() {
 }
 
 fn assignment(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((
+    tuple((
         identifier,
         space0,
         tag("="),
@@ -481,22 +455,19 @@ fn assignment(input: &[u8]) -> IResult<&[u8], Expression> {
         space0,
         tag(";"),
     ))(input)
-    {
-        Ok((input, (id, _, _, _, exp, _, _))) => {
-            if let Identifier(s) = id {
-                Ok((
-                    input,
-                    Assignment {
-                        name: s,
-                        expression: Box::new(exp),
-                    },
-                ))
-            } else {
-                panic!();
-            }
+    .map(|(input, (id, _, _, _, exp, _, _))| {
+        if let Identifier(s) = id {
+            (
+                input,
+                Assignment {
+                    name: s,
+                    expression: Box::new(exp),
+                },
+            )
+        } else {
+            panic!();
         }
-        Err(e) => Err(e),
-    }
+    })
 }
 
 #[test]
@@ -513,10 +484,7 @@ fn test_assignment() {
 }
 
 fn expression_line(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((expression, space0, tag(";")))(input) {
-        Ok((input, (exp, _, _))) => Ok((input, exp)),
-        Err(e) => Err(e),
-    }
+    tuple((expression, space0, tag(";")))(input).map(|(input, (exp, _, _))| (input, exp))
 }
 
 #[test]
@@ -533,7 +501,8 @@ fn expression(input: &[u8]) -> IResult<&[u8], Expression> {
 fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
     match additive(input) {
         Ok((input, exp)) => {
-            let ret = many0(tuple((
+            let mut cur = exp;
+            many0(tuple((
                 space0,
                 alt((
                     tag("<"),
@@ -545,32 +514,26 @@ fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
                 )),
                 space0,
                 additive,
-            )))(input);
-
-            let mut cur = exp;
-            match ret {
-                Ok((input, v)) => {
-                    for elem in v {
-                        let (_, op, _, ex) = elem;
-                        cur = BinaryExpression {
-                            operator: match op {
-                                b"<" => Operator::LessThan,
-                                b">" => Operator::GreaterThan,
-                                b"<=" => Operator::LessOrEqual,
-                                b">=" => Operator::GreaterOrEqual,
-                                b"==" => Operator::EqualEqual,
-                                b"!=" => Operator::NotEqual,
-                                _ => panic!(),
-                            },
-                            lhs: Box::new(cur),
-                            rhs: Box::new(ex),
-                        };
-                    }
-
-                    Ok((input, cur))
+            )))(input)
+            .map(|(input, v)| {
+                for elem in v {
+                    let (_, op, _, ex) = elem;
+                    cur = BinaryExpression {
+                        operator: match op {
+                            b"<" => Operator::LessThan,
+                            b">" => Operator::GreaterThan,
+                            b"<=" => Operator::LessOrEqual,
+                            b">=" => Operator::GreaterOrEqual,
+                            b"==" => Operator::EqualEqual,
+                            b"!=" => Operator::NotEqual,
+                            _ => panic!(),
+                        },
+                        lhs: Box::new(cur),
+                        rhs: Box::new(ex),
+                    };
                 }
-                Err(e) => Err(e),
-            }
+                (input, cur)
+            })
         }
         Err(e) => Err(e),
     }
@@ -593,33 +556,29 @@ fn test_comparative() {
 fn additive(input: &[u8]) -> IResult<&[u8], Expression> {
     match multitive(input) {
         Ok((input, exp)) => {
-            let ret = many0(tuple((
+            let mut cur = exp;
+            many0(tuple((
                 space0,
                 alt((tag("+"), tag("-"))),
                 space0,
                 multitive,
-            )))(input);
-
-            let mut cur = exp;
-            match ret {
-                Ok((input, v)) => {
-                    for elem in v {
-                        let (_, op, _, ex) = elem;
-                        cur = BinaryExpression {
-                            operator: match op {
-                                b"+" => Operator::Add,
-                                b"-" => Operator::Subtract,
-                                _ => panic!(),
-                            },
-                            lhs: Box::new(cur),
-                            rhs: Box::new(ex),
-                        };
-                    }
-
-                    Ok((input, cur))
+            )))(input)
+            .map(|(input, v)| {
+                for elem in v {
+                    let (_, op, _, ex) = elem;
+                    cur = BinaryExpression {
+                        operator: match op {
+                            b"+" => Operator::Add,
+                            b"-" => Operator::Subtract,
+                            _ => panic!(),
+                        },
+                        lhs: Box::new(cur),
+                        rhs: Box::new(ex),
+                    };
                 }
-                Err(e) => Err(e),
-            }
+
+                (input, cur)
+            })
         }
         Err(e) => Err(e),
     }
@@ -642,11 +601,9 @@ fn test_additive() {
 fn multitive(input: &[u8]) -> IResult<&[u8], Expression> {
     match primary(input) {
         Ok((input, exp)) => {
-            let ret = many0(tuple((space0, alt((tag("*"), tag("/"))), space0, primary)))(input);
-
             let mut cur = exp;
-            match ret {
-                Ok((input, v)) => {
+            many0(tuple((space0, alt((tag("*"), tag("/"))), space0, primary)))(input).map(
+                |(input, v)| {
                     for elem in v {
                         let (_, op, _, ex) = elem;
                         cur = BinaryExpression {
@@ -660,10 +617,9 @@ fn multitive(input: &[u8]) -> IResult<&[u8], Expression> {
                         };
                     }
 
-                    Ok((input, cur))
-                }
-                Err(e) => Err(e),
-            }
+                    (input, cur)
+                },
+            )
         }
         Err(e) => Err(e),
     }
@@ -731,34 +687,36 @@ fn test_primary() {
 }
 
 fn function_call(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((identifier, space0, tag("("), space0))(input) {
-        Ok((input, (name, _, _, _))) => {
-            if let Identifier(name2) = name {
-                match expression(input) {
-                    Ok((input, exp1)) => {
-                        let ret = tuple((
-                            many0(tuple((tag(","), space0, expression, space0))),
-                            tag(")"),
-                        ))(input);
-                        match ret {
-                            Ok((input, (v, _))) => {
-                                let mut args = vec![exp1];
-                                for pair in v {
-                                    args.push(pair.2);
-                                }
-                                Ok((input, FunctionCall { name: name2, args }))
-                            }
-                            Err(e) => Err(e),
-                        }
+    tuple((
+        identifier,
+        space0,
+        tag("("),
+        space0,
+        opt(tuple((
+            expression,
+            many0(tuple((space0, tag(","), space0, expression))),
+            space0,
+        ))),
+        tag(")"),
+    ))(input)
+    .map(|(input, (id, _, _, _, arg_opt, _))| {
+        if let Identifier(s) = id {
+            let args = match arg_opt {
+                Some(t) => {
+                    let mut args = vec![t.0];
+                    for arg in t.1 {
+                        args.push(arg.3);
                     }
-                    Err(e) => Err(e),
+                    args
                 }
-            } else {
-                panic!()
-            }
+                None => Vec::new(),
+            };
+
+            (input, FunctionCall { name: s, args })
+        } else {
+            panic!();
         }
-        Err(e) => Err(e),
-    }
+    })
 }
 
 #[test]
@@ -775,22 +733,21 @@ fn test_function_call() {
 }
 
 fn labelled_patameter(input: &[u8]) -> IResult<&[u8], LabelledParameter> {
-    match tuple((identifier, space0, tag("="), space0, expression))(input) {
-        Ok((input, (id, _, _, _, exp))) => {
+    tuple((identifier, space0, tag("="), space0, expression))(input).map(
+        |(input, (id, _, _, _, exp))| {
             if let Identifier(name) = id {
-                Ok((
+                (
                     input,
                     LabelledParameter {
                         name,
                         expression: Box::new(exp),
                     },
-                ))
+                )
             } else {
                 panic!()
             }
-        }
-        Err(e) => Err(e),
-    }
+        },
+    )
 }
 
 #[test]
@@ -807,7 +764,7 @@ fn test_labelled_patameter() {
 }
 
 fn labelled_call(input: &[u8]) -> IResult<&[u8], Expression> {
-    match tuple((
+    tuple((
         identifier,
         space0,
         tag("["),
@@ -819,27 +776,24 @@ fn labelled_call(input: &[u8]) -> IResult<&[u8], Expression> {
         ))),
         tag("]"),
     ))(input)
-    {
-        Ok((input, (id, _, _, _, arg_opt, _))) => {
-            if let Identifier(s) = id {
-                let args = match arg_opt {
-                    Some(t) => {
-                        let mut args = vec![t.0];
-                        for arg in t.1 {
-                            args.push(arg.3);
-                        }
-                        args
+    .map(|(input, (id, _, _, _, arg_opt, _))| {
+        if let Identifier(s) = id {
+            let args = match arg_opt {
+                Some(t) => {
+                    let mut args = vec![t.0];
+                    for arg in t.1 {
+                        args.push(arg.3);
                     }
-                    None => Vec::new(),
-                };
+                    args
+                }
+                None => Vec::new(),
+            };
 
-                Ok((input, LabelledCall { name: s, args }))
-            } else {
-                panic!();
-            }
+            (input, LabelledCall { name: s, args })
+        } else {
+            panic!();
         }
-        Err(e) => Err(e),
-    }
+    })
 }
 
 #[test]
