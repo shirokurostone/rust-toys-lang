@@ -9,8 +9,8 @@ use nom::sequence::tuple;
 use nom::IResult;
 use std::str;
 
-use crate::interpreter::Expression::*;
-use crate::interpreter::*;
+use crate::ast::Expression::*;
+use crate::ast::*;
 
 fn space0(input: &[u8]) -> IResult<&[u8], &[u8]> {
     multispace0(input)
