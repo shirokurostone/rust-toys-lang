@@ -760,6 +760,11 @@ fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
         return Ok((input, exp));
     }
 
+    let ret = labelled_call(input);
+    if let Ok((input, exp)) = ret {
+        return Ok((input, exp));
+    }
+
     identifier(input)
 }
 
@@ -779,6 +784,19 @@ fn test_primary() {
         Expression::FunctionCall {
             name: "func".to_string(),
             args: vec![Expression::Literal(123)],
+        },
+        exp
+    );
+
+    let (input, exp) = primary(b"func[abc=123] ").unwrap();
+    assert_eq!(b" ", input);
+    assert_eq!(
+        Expression::LabelledCall {
+            name: "func".to_string(),
+            args: vec![LabelledParameter {
+                name: "abc".to_string(),
+                expression: Box::new(Expression::Literal(123)),
+            },],
         },
         exp
     );
@@ -833,6 +851,102 @@ fn test_function_call() {
         Expression::FunctionCall {
             name: "func".to_string(),
             args: vec![Expression::Literal(123)],
+        },
+        exp
+    );
+}
+
+fn labelled_patameter(input: &[u8]) -> IResult<&[u8], LabelledParameter> {
+    match tuple((identifier, space0, tag("="), space0, expression))(input) {
+        Ok((input, (id, _, _, _, exp))) => {
+            if let Expression::Identifier(name) = id {
+                Ok((
+                    input,
+                    LabelledParameter {
+                        name: name,
+                        expression: Box::new(exp),
+                    },
+                ))
+            } else {
+                panic!()
+            }
+        }
+        Err(e) => Err(e),
+    }
+}
+
+#[test]
+fn test_labelled_patameter() {
+    let (input, param) = labelled_patameter(b"a=123 ").unwrap();
+    assert_eq!(b" ", input);
+    assert_eq!(
+        LabelledParameter {
+            name: "a".to_string(),
+            expression: Box::new(Expression::Literal(123)),
+        },
+        param
+    );
+}
+
+fn labelled_call(input: &[u8]) -> IResult<&[u8], Expression> {
+    match tuple((
+        identifier,
+        space0,
+        tag("["),
+        space0,
+        opt(tuple((
+            labelled_patameter,
+            many0(tuple((space0, tag(","), space0, labelled_patameter))),
+            space0,
+        ))),
+        tag("]"),
+    ))(input)
+    {
+        Ok((input, (id, _, _, _, arg_opt, _))) => {
+            if let Expression::Identifier(s) = id {
+                let args = match arg_opt {
+                    Some(t) => {
+                        let mut args = vec![t.0];
+                        for arg in t.1 {
+                            args.push(arg.3);
+                        }
+                        args
+                    }
+                    None => Vec::new(),
+                };
+
+                Ok((
+                    input,
+                    Expression::LabelledCall {
+                        name: s,
+                        args: args,
+                    },
+                ))
+            } else {
+                panic!();
+            }
+        }
+        Err(e) => Err(e),
+    }
+}
+
+#[test]
+fn test_labelled_call() {
+    let (input, exp) = labelled_call(b"func[abc=123,def=456] ").unwrap();
+    assert_eq!(b" ", input);
+    assert_eq!(
+        Expression::LabelledCall {
+            name: "func".to_string(),
+            args: vec![
+                LabelledParameter {
+                    name: "abc".to_string(),
+                    expression: Box::new(Expression::Literal(123)),
+                },
+                LabelledParameter {
+                    name: "def".to_string(),
+                    expression: Box::new(Expression::Literal(456)),
+                },
+            ],
         },
         exp
     );

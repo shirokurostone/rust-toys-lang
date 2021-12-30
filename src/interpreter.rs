@@ -44,6 +44,16 @@ pub enum Expression {
         name: String,
         args: Vec<Expression>,
     },
+    LabelledCall {
+        name: String,
+        args: Vec<LabelledParameter>,
+    },
+}
+
+#[derive(Debug, PartialEq)]
+pub struct LabelledParameter {
+    pub name: String,
+    pub expression: Box<Expression>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -280,6 +290,49 @@ impl<'a> Interpreter<'a> {
                             match formal_params.get(i) {
                                 Some(v) => {
                                     env.insert(v.to_string(), values[i]);
+                                }
+                                None => panic!(),
+                            }
+                        }
+
+                        self.environments.push(env);
+                        ret = self.interpret(body);
+                        self.environments.pop();
+                    }
+                    ret
+                }
+                None => panic!(),
+            },
+            Expression::LabelledCall {
+                name,
+                args: actual_params,
+            } => match self.function_environment.get(name) {
+                Some(def) => {
+                    let mut ret = 0;
+                    if let TopLevel::FunctionDefinition {
+                        name: _,
+                        args: formal_params,
+                        body,
+                    } = def
+                    {
+                        if actual_params.len() != formal_params.len() {
+                            panic!();
+                        }
+
+                        let mut labelled_parameter_map =
+                            HashMap::<&String, &LabelledParameter>::new();
+                        for param in actual_params {
+                            labelled_parameter_map.insert(&param.name, param);
+                        }
+
+                        let mut env = HashMap::<String, i32>::new();
+                        for i in 0..(formal_params.len()) {
+                            match formal_params.get(i) {
+                                Some(v) => {
+                                    let labelled_parameter =
+                                        *labelled_parameter_map.get(v).unwrap();
+                                    let exp = &(*labelled_parameter.expression);
+                                    env.insert(v.to_string(), self.interpret(exp));
                                 }
                                 None => panic!(),
                             }
