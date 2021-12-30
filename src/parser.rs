@@ -1,8 +1,8 @@
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::bytes::streaming::{take_while, take_while1};
+use nom::bytes::streaming::take_while1;
 use nom::character::complete::{digit1, multispace0, multispace1};
-use nom::character::{is_alphabetic, is_digit};
+use nom::character::is_alphabetic;
 use nom::combinator::opt;
 use nom::multi::many0;
 use nom::sequence::tuple;
@@ -210,10 +210,6 @@ fn test_global_variable_definition() {
         },
         exp
     );
-}
-
-fn lines(input: &[u8]) -> IResult<&[u8], Vec<Expression>> {
-    many0(line)(input)
 }
 
 fn line(input: &[u8]) -> IResult<&[u8], Expression> {
@@ -559,53 +555,19 @@ fn comparative(input: &[u8]) -> IResult<&[u8], Expression> {
                 Ok((input, v)) => {
                     for elem in v {
                         let (_, op, _, ex) = elem;
-                        match op {
-                            b"<" => {
-                                cur = Expression::BinaryExpression {
-                                    operator: Operator::LessThan,
-                                    lhs: Box::new(cur),
-                                    rhs: Box::new(ex),
-                                };
-                            }
-                            b">" => {
-                                cur = Expression::BinaryExpression {
-                                    operator: Operator::GreaterThan,
-                                    lhs: Box::new(cur),
-                                    rhs: Box::new(ex),
-                                };
-                            }
-                            b"<=" => {
-                                cur = Expression::BinaryExpression {
-                                    operator: Operator::LessOrEqual,
-                                    lhs: Box::new(cur),
-                                    rhs: Box::new(ex),
-                                };
-                            }
-                            b">=" => {
-                                cur = Expression::BinaryExpression {
-                                    operator: Operator::GreaterOrEqual,
-                                    lhs: Box::new(cur),
-                                    rhs: Box::new(ex),
-                                };
-                            }
-                            b"==" => {
-                                cur = Expression::BinaryExpression {
-                                    operator: Operator::EqualEqual,
-                                    lhs: Box::new(cur),
-                                    rhs: Box::new(ex),
-                                };
-                            }
-                            b"!=" => {
-                                cur = Expression::BinaryExpression {
-                                    operator: Operator::NotEqual,
-                                    lhs: Box::new(cur),
-                                    rhs: Box::new(ex),
-                                };
-                            }
-                            _ => {
-                                panic!();
-                            }
-                        }
+                        cur = Expression::BinaryExpression {
+                            operator: match op {
+                                b"<" => Operator::LessThan,
+                                b">" => Operator::GreaterThan,
+                                b"<=" => Operator::LessOrEqual,
+                                b">=" => Operator::GreaterOrEqual,
+                                b"==" => Operator::EqualEqual,
+                                b"!=" => Operator::NotEqual,
+                                _ => panic!(),
+                            },
+                            lhs: Box::new(cur),
+                            rhs: Box::new(ex),
+                        };
                     }
 
                     Ok((input, cur))
@@ -646,25 +608,15 @@ fn additive(input: &[u8]) -> IResult<&[u8], Expression> {
                 Ok((input, v)) => {
                     for elem in v {
                         let (_, op, _, ex) = elem;
-                        match op {
-                            b"+" => {
-                                cur = Expression::BinaryExpression {
-                                    operator: Operator::Add,
-                                    lhs: Box::new(cur),
-                                    rhs: Box::new(ex),
-                                };
-                            }
-                            b"-" => {
-                                cur = Expression::BinaryExpression {
-                                    operator: Operator::Subtract,
-                                    lhs: Box::new(cur),
-                                    rhs: Box::new(ex),
-                                };
-                            }
-                            _ => {
-                                panic!();
-                            }
-                        }
+                        cur = Expression::BinaryExpression {
+                            operator: match op {
+                                b"+" => Operator::Add,
+                                b"-" => Operator::Subtract,
+                                _ => panic!(),
+                            },
+                            lhs: Box::new(cur),
+                            rhs: Box::new(ex),
+                        };
                     }
 
                     Ok((input, cur))
@@ -700,25 +652,15 @@ fn multitive(input: &[u8]) -> IResult<&[u8], Expression> {
                 Ok((input, v)) => {
                     for elem in v {
                         let (_, op, _, ex) = elem;
-                        match op {
-                            b"*" => {
-                                cur = Expression::BinaryExpression {
-                                    operator: Operator::Multiply,
-                                    lhs: Box::new(cur),
-                                    rhs: Box::new(ex),
-                                };
-                            }
-                            b"/" => {
-                                cur = Expression::BinaryExpression {
-                                    operator: Operator::Divide,
-                                    lhs: Box::new(cur),
-                                    rhs: Box::new(ex),
-                                };
-                            }
-                            _ => {
-                                panic!();
-                            }
-                        }
+                        cur = Expression::BinaryExpression {
+                            operator: match op {
+                                b"*" => Operator::Multiply,
+                                b"/" => Operator::Divide,
+                                _ => panic!(),
+                            },
+                            lhs: Box::new(cur),
+                            rhs: Box::new(ex),
+                        };
                     }
 
                     Ok((input, cur))
@@ -750,22 +692,7 @@ fn primary(input: &[u8]) -> IResult<&[u8], Expression> {
         return Ok((input, exp));
     }
 
-    let ret = integer(input);
-    if let Ok((input, exp)) = ret {
-        return Ok((input, exp));
-    }
-
-    let ret = function_call(input);
-    if let Ok((input, exp)) = ret {
-        return Ok((input, exp));
-    }
-
-    let ret = labelled_call(input);
-    if let Ok((input, exp)) = ret {
-        return Ok((input, exp));
-    }
-
-    identifier(input)
+    alt((integer, function_call, labelled_call, identifier))(input)
 }
 
 #[test]
