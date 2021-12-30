@@ -217,20 +217,27 @@ fn lines(input: &[u8]) -> IResult<&[u8], Vec<Expression>> {
 }
 
 fn line(input: &[u8]) -> IResult<&[u8], Expression> {
-    alt((
-        while_expression,
-        for_in_expression,
-        if_expression,
-        assignment,
-        expression_line,
-        block_expression,
+    match tuple((
+        alt((
+            while_expression,
+            for_in_expression,
+            if_expression,
+            assignment,
+            expression_line,
+            block_expression,
+        )),
+        space0,
     ))(input)
+    {
+        Ok((input, (exp, _))) => Ok((input, exp)),
+        Err(e) => Err(e),
+    }
 }
 
 #[test]
 fn test_line() {
     let (input, exp) = line(b"abc=12345; ").unwrap();
-    assert_eq!(b" ", input);
+    assert_eq!(b"", input);
     assert_eq!(
         Expression::Assignment {
             name: "abc".to_string(),
@@ -240,7 +247,7 @@ fn test_line() {
     );
 
     let (input, exp) = line(b"12345; ").unwrap();
-    assert_eq!(b" ", input);
+    assert_eq!(b"", input);
     assert_eq!(Expression::Literal(12345), exp);
 }
 
@@ -335,7 +342,7 @@ fn while_expression(input: &[u8]) -> IResult<&[u8], Expression> {
 #[test]
 fn test_while_expression() {
     let (input, exp) = while_expression(b"while(1!=2){3;} ").unwrap();
-    assert_eq!(b" ", input);
+    assert_eq!(b"", input);
     assert_eq!(
         Expression::While {
             condition: Box::new(Expression::BinaryExpression {
@@ -418,7 +425,7 @@ fn for_in_expression(input: &[u8]) -> IResult<&[u8], Expression> {
 #[test]
 fn test_for_in_expression() {
     let (input, exp) = for_in_expression(b"for( i in 1 to 10)3; ").unwrap();
-    assert_eq!(b" ", input);
+    assert_eq!(b"", input);
     assert_eq!(
         Expression::Block {
             expressions: vec![
